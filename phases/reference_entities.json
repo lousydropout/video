@@ -1,0 +1,38 @@
+[
+  {
+    "entity_id": "little_girl",
+    "description": "A young girl around 5 years old with curly brown hair and bright eyes, wearing a light pink dress and white sneakers."
+  },
+  {
+    "entity_id": "teddy_bear_object",
+    "description": "A classic plush teddy bear, medium-sized, with soft brown fur, black button eyes, and a red ribbon around its neck, inanimate form."
+  },
+  {
+    "entity_id": "teddy_bear_living",
+    "description": "The teddy bear in magical living form, standing upright, glowing warmly with gentle golden light, radiating protective energy."
+  },
+  {
+    "entity_id": "teddy_bear_light_beam",
+    "description": "The teddy bear emitting a powerful, focused bright golden beam of light shooting upward, dispersing thunderclouds."
+  },
+  {
+    "entity_id": "menacing_dog",
+    "description": "A large, dark-colored dog with sharp features and an aggressive stance, menacing but later fearful."
+  },
+  {
+    "entity_id": "environment_park_sunny",
+    "description": "Bright, sunlit park with green grass, tall trees, paved walking path, warm natural sunlight, clear skies."
+  },
+  {
+    "entity_id": "environment_park_thunderclouds_gathering",
+    "description": "Same park under dark, gathering thunderclouds with distant thunder, dim shadowed lighting, cool blue-gray tones."
+  },
+  {
+    "entity_id": "environment_park_after_light_beam",
+    "description": "Park after teddy bear's light beam disperses clouds, calm with soft warm light, patches of sunlight, clearing skies."
+  },
+  {
+    "entity_id": "environment_cozy_room_evening",
+    "description": "Warm, cozy bedroom with soft warm indoor lighting, small bed with colorful blankets, toys scattered around."
+  }
+]

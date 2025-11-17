@@ -1,0 +1,65 @@
+[
+  {
+    "scene_number": 1,
+    "environment": "environment_park_sunny",
+    "primary_entities": [
+      "little_girl",
+      "teddy_bear_object"
+    ],
+    "secondary_entities": [],
+    "notes": "Girl strolling happily holding inanimate teddy bear in bright sunny park."
+  },
+  {
+    "scene_number": 2,
+    "environment": "environment_park_thunderclouds_gathering",
+    "primary_entities": [
+      "little_girl",
+      "menacing_dog"
+    ],
+    "secondary_entities": [],
+    "notes": "Girl startled by menacing dog under dark thunderclouds."
+  },
+  {
+    "scene_number": 3,
+    "environment": "environment_park_thunderclouds_gathering",
+    "primary_entities": [
+      "little_girl",
+      "teddy_bear_living",
+      "menacing_dog"
+    ],
+    "secondary_entities": [],
+    "notes": "Teddy bear comes to life glowing warmly, standing protectively between girl and dog."
+  },
+  {
+    "scene_number": 4,
+    "environment": "environment_park_thunderclouds_gathering",
+    "primary_entities": [
+      "teddy_bear_light_beam",
+      "menacing_dog"
+    ],
+    "secondary_entities": [
+      "little_girl"
+    ],
+    "notes": "Teddy bear emits powerful light beam dispersing clouds; dog runs away fearful."
+  },
+  {
+    "scene_number": 5,
+    "environment": "environment_park_after_light_beam",
+    "primary_entities": [
+      "little_girl",
+      "teddy_bear_living"
+    ],
+    "secondary_entities": [],
+    "notes": "Calm park with soft warm light; girl hugs glowing teddy bear comforted."
+  },
+  {
+    "scene_number": 6,
+    "environment": "environment_cozy_room_evening",
+    "primary_entities": [
+      "little_girl",
+      "teddy_bear_object"
+    ],
+    "secondary_entities": [],
+    "notes": "Cozy indoor bedroom; girl hugs inanimate teddy bear object feeling safe per human feedback."
+  }
+]

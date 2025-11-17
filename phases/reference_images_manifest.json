@@ -1,0 +1,124 @@
+{
+  "images": [
+    {
+      "entity_id": "little_girl",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "little_girl",
+      "variant_index": 2,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "little_girl",
+      "variant_index": 3,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "teddy_bear_object",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "teddy_bear_object",
+      "variant_index": 2,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "teddy_bear_living",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "teddy_bear_living",
+      "variant_index": 2,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "teddy_bear_light_beam",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "menacing_dog",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "menacing_dog",
+      "variant_index": 2,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "menacing_dog",
+      "variant_index": 3,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "environment_park_sunny",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "environment_park_thunderclouds_gathering",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "environment_park_after_light_beam",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    },
+    {
+      "entity_id": "environment_cozy_room_evening",
+      "variant_index": 1,
+      "reference_image_path": null,
+      "prompt_used": null,
+      "negative_prompt_used": null,
+      "metadata": {}
+    }
+  ]
+}

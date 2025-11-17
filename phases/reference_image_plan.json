@@ -1,0 +1,98 @@
+[
+  {
+    "entity_id": "little_girl",
+    "num_variants": 3,
+    "suggested_aspect_ratios": [
+      "16:9",
+      "4:3"
+    ],
+    "framing_notes": "Include medium wide and medium shots showing full body and facial expressions.",
+    "lighting_notes": "Natural warm sunlight and soft indoor lighting variants.",
+    "usage_notes": "Used in all scenes; maintain consistent clothing and appearance."
+  },
+  {
+    "entity_id": "teddy_bear_object",
+    "num_variants": 2,
+    "suggested_aspect_ratios": [
+      "1:1",
+      "4:3"
+    ],
+    "framing_notes": "Focus on plush texture and red ribbon details; close-up and medium shots.",
+    "lighting_notes": "Warm soft light for indoor and neutral daylight for outdoor.",
+    "usage_notes": "Used as inanimate teddy bear in scenes 1, 5, and 6 (scene 6 per human feedback)."
+  },
+  {
+    "entity_id": "teddy_bear_living",
+    "num_variants": 2,
+    "suggested_aspect_ratios": [
+      "4:3",
+      "16:9"
+    ],
+    "framing_notes": "Close medium shots emphasizing glowing fur and protective stance.",
+    "lighting_notes": "Warm glowing light contrasting dim environment.",
+    "usage_notes": "Used in scenes 3 and 5 as living magical teddy bear."
+  },
+  {
+    "entity_id": "teddy_bear_light_beam",
+    "num_variants": 1,
+    "suggested_aspect_ratios": [
+      "9:16",
+      "16:9"
+    ],
+    "framing_notes": "Wide vertical shots capturing full beam height and cloud dispersal.",
+    "lighting_notes": "Bright golden beam with dynamic lighting and cloud effects.",
+    "usage_notes": "Used in scene 4 to show magical light beam dispersing thunderclouds."
+  },
+  {
+    "entity_id": "menacing_dog",
+    "num_variants": 3,
+    "suggested_aspect_ratios": [
+      "16:9",
+      "4:3"
+    ],
+    "framing_notes": "Medium shots showing aggressive stance, startled reaction, and running away.",
+    "lighting_notes": "Dim shadowed lighting under thunderclouds.",
+    "usage_notes": "Used in scenes 2 and 4 with emotional arc from menacing to fearful."
+  },
+  {
+    "entity_id": "environment_park_sunny",
+    "num_variants": 1,
+    "suggested_aspect_ratios": [
+      "16:9"
+    ],
+    "framing_notes": "Wide shots showing open grassy areas, trees, and paved path.",
+    "lighting_notes": "Warm natural sunlight casting soft shadows.",
+    "usage_notes": "Environment for scene 1."
+  },
+  {
+    "entity_id": "environment_park_thunderclouds_gathering",
+    "num_variants": 1,
+    "suggested_aspect_ratios": [
+      "16:9"
+    ],
+    "framing_notes": "Wide and medium shots showing dark clouds and shadowed park.",
+    "lighting_notes": "Dim, cool blue-gray tones with subtle lightning flickers.",
+    "usage_notes": "Environment for scenes 2, 3, and 4."
+  },
+  {
+    "entity_id": "environment_park_after_light_beam",
+    "num_variants": 1,
+    "suggested_aspect_ratios": [
+      "16:9"
+    ],
+    "framing_notes": "Medium shots with soft warm light and patches of sunlight.",
+    "lighting_notes": "Soft warm light with golden hues and gentle shadows.",
+    "usage_notes": "Environment for scene 5."
+  },
+  {
+    "entity_id": "environment_cozy_room_evening",
+    "num_variants": 1,
+    "suggested_aspect_ratios": [
+      "16:9",
+      "4:3"
+    ],
+    "framing_notes": "Medium shots showing small bed, blankets, toys, and window.",
+    "lighting_notes": "Soft warm indoor lighting with cozy amber tones.",
+    "usage_notes": "Environment for scene 6."
+  }
+]

@@ -1,0 +1,340 @@
+#!/usr/bin/env python3
+import os, json, sys, time, hashlib, uuid
+from datetime import datetime
+import requests
+from openai import OpenAI
+
+# ---------------------------
+# CONFIG
+# ---------------------------
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
+
+if not OPENAI_API_KEY:
+    print("❌ Missing OPENAI_API_KEY")
+    sys.exit(1)
+
+if not REPLICATE_API_TOKEN:
+    print("❌ Missing REPLICATE_API_TOKEN")
+    sys.exit(1)
+
+client = OpenAI()
+
+MODEL = "gpt-4.1-mini"
+RUNWAY_MODEL = "runwayml/gen4-image"
+
+OUT_DIR = "artifacts/5_reference_images"
+MANIFEST_PATH = "artifacts/5_reference_images/reference_image_manifest.json"
+
+# Retry config
+MAX_RETRIES = 4
+RETRY_DELAY = 4
+
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+
+def load_prompt(file):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    prompt_dir = os.path.join(
+        os.path.dirname(script_dir), "prompts", "5_reference_images"
+    )
+    path = os.path.join(prompt_dir, file)
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def llm(system, user):
+    resp = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.1,
+    )
+    return resp.choices[0].message.content
+
+
+def hashed_filename(entity_id, variant_idx):
+    salt = uuid.uuid4().hex[:6]
+    return f"{entity_id}_v{variant_idx}_{salt}.png"
+
+
+def ensure_dir(path):
+    os.makedirs(path, exist_ok=True)
+
+
+# ============================================================
+# RUNWAY (REPLICATE) CALL
+# ============================================================
+
+
+def upload_file_to_replicate(file_path):
+    """
+    Upload a local file to Replicate and return its URL.
+    Reference: https://replicate.com/docs/reference/http#files.upload
+    """
+    upload_url = "https://api.replicate.com/v1/files"
+    headers = {
+        "Authorization": f"Bearer {REPLICATE_API_TOKEN}",
+    }
+
+    with open(file_path, "rb") as f:
+        files = {"file": f}
+        r = requests.post(upload_url, files=files, headers=headers)
+        if r.status_code not in (200, 201):
+            raise RuntimeError(f"Failed to upload file: {r.text}")
+
+    result = r.json()
+    # Replicate returns the file URL in the response
+    return result.get("url") or result.get("uri")
+
+
+def call_runway(prompt, ref_images, aspect_ratio="16:9"):
+    """
+    Call Runway Gen-4 Image model via Replicate API.
+
+    Args:
+        prompt: Text prompt for image generation
+        ref_images: List of file paths (local) or URLs (remote). Up to 3 images.
+                   Local files will be uploaded to Replicate first.
+        aspect_ratio: Aspect ratio string (e.g., "16:9", "4:3", "1:1"). Default "16:9"
+
+    Returns:
+        URL of generated image
+    """
+    # Runway schema reference:
+    # https://replicate.com/runwayml/gen4-image/api/schema
+    # API reference: https://replicate.com/runwayml/gen4-image/api/api-reference
+
+    input_params = {
+        "prompt": prompt,
+        "aspect_ratio": aspect_ratio,
+    }
+
+    # Handle reference images - convert local files to URLs
+    if ref_images:
+        ref_urls = []
+        for ref in ref_images[:3]:  # Max 3 reference images
+            if ref.startswith(("http://", "https://")):
+                # Already a URL
+                ref_urls.append(ref)
+            else:
+                # Local file - upload to Replicate
+                try:
+                    url = upload_file_to_replicate(ref)
+                    ref_urls.append(url)
+                except Exception as e:
+                    print(f"⚠️  Warning: Failed to upload reference image {ref}: {e}")
+                    continue
+
+        if ref_urls:
+            input_params["reference_images"] = ref_urls
+            # Note: reference_tags can be added if needed for @tag syntax in prompts
+
+    run_payload = {
+        "input": input_params,
+    }
+
+    url = f"https://api.replicate.com/v1/models/{RUNWAY_MODEL}/predictions"
+    headers = {
+        "Authorization": f"Bearer {REPLICATE_API_TOKEN}",
+    }
+
+    r = requests.post(url, json=run_payload, headers=headers)
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"Runway request failed: {r.text}")
+
+    pred = r.json()
+    pred_id = pred["id"]
+
+    # Poll for completion
+    # Use the get URL from the prediction response, or construct it
+    get_url = (
+        pred.get("urls", {}).get("get")
+        or f"https://api.replicate.com/v1/predictions/{pred_id}"
+    )
+
+    while True:
+        time.sleep(1)
+        poll_r = requests.get(get_url, headers=headers)
+        if poll_r.status_code != 200:
+            raise RuntimeError(f"Failed to poll prediction: {poll_r.text}")
+        poll = poll_r.json()
+
+        status = poll.get("status")
+        if status in ("succeeded", "failed", "canceled"):
+            break
+
+    if poll.get("status") != "succeeded":
+        error_msg = poll.get("error") or poll.get("logs") or "Unknown error"
+        raise RuntimeError(f"Runway generation failed: {error_msg}")
+
+    # Return the image URL
+    output = poll.get("output")
+    if not output:
+        raise RuntimeError(f"No output in prediction result: {poll}")
+
+    # Output can be a string (single URL) or list of URLs
+    if isinstance(output, list):
+        return output[0]
+    return output
+
+
+def download_image(url, dest_path):
+    img = requests.get(url)
+    if img.status_code == 200:
+        with open(dest_path, "wb") as f:
+            f.write(img.content)
+    else:
+        raise RuntimeError(f"Failed to download image {url}")
+
+
+# ============================================================
+# HUMAN CHECK
+# ============================================================
+
+
+def human_review_instruction():
+    return """
+Review the generated image visually.
+
+Rate on:
+- consistency with reference entity
+- lighting match
+- clothing / shape match
+- product fidelity
+- magical or special form accuracy
+- avoidance of deformities
+- face clarity (if required)
+- incorrect anatomy
+
+Enter one of:
+
+    y       → accept image
+    n       → reject and regenerate
+    s       → skip this variant entirely
+    q       → quit pipeline
+
+Your choice: """
+
+
+# ============================================================
+# MAIN PIPELINE
+# ============================================================
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: {} <reference_plan.json>".format(sys.argv[0]))
+        sys.exit(1)
+
+    plan_file = sys.argv[1]
+    with open(plan_file, "r", encoding="utf-8") as f:
+        plan = json.load(f)
+
+    entities = plan["reference_entities"]
+    image_plan = plan["reference_image_plan"]
+
+    ensure_dir(OUT_DIR)
+
+    # Load prompt template
+    IMAGE_PROMPT_SYSTEM = load_prompt("image_prompt_generator.txt")
+
+    manifest = {}
+
+    # --------------------------------------------------------
+    # GENERATE ALL ENTITIES
+    # --------------------------------------------------------
+    for entry in image_plan:
+        entity_id = entry["entity_id"]
+        variants = entry["num_variants"]
+
+        print(f"\n=== ENTITY: {entity_id} ===")
+        manifest[entity_id] = []
+
+        entity_folder = os.path.join(OUT_DIR, f"entity_{entity_id}")
+        ensure_dir(entity_folder)
+
+        # Build base prompt from LLM
+        entity_json_dump = json.dumps(entry, indent=2)
+        base_prompt = llm(IMAGE_PROMPT_SYSTEM, entity_json_dump)
+
+        print(f"Generated base image prompt:\n{base_prompt}\n")
+
+        # Generate each variant
+        for i in range(1, variants + 1):
+            print(f" → Generating variant {i}/{variants}")
+
+            # Gather reference images (if any)
+            ref_imgs = []
+            if "reference_images" in entry:
+                subset = entry["reference_images"]
+                ref_imgs = subset[:3]  # model max
+
+            # Extract aspect ratio from plan, default to 16:9
+            aspect_ratio = "16:9"  # default
+            if "suggested_aspect_ratios" in entry and entry["suggested_aspect_ratios"]:
+                # Use first suggested aspect ratio
+                aspect_ratio = entry["suggested_aspect_ratios"][0]
+
+            # Retry loop
+            url = None
+            for attempt in range(MAX_RETRIES):
+                try:
+                    url = call_runway(base_prompt, ref_imgs, aspect_ratio=aspect_ratio)
+                    break
+                except Exception as e:
+                    print(f"   Retry {attempt+1}/{MAX_RETRIES} error: {e}")
+                    time.sleep(RETRY_DELAY)
+
+            if not url:
+                print(f"❌ Failed to generate after retries. Skipping variant.")
+                continue
+
+            filename = hashed_filename(entity_id, i)
+            save_path = os.path.join(entity_folder, filename)
+
+            # Download
+            try:
+                download_image(url, save_path)
+            except Exception as e:
+                print(f"❌ Failed to download image: {e}")
+                continue
+
+            # Human review
+            print(f"\nImage saved: {save_path}")
+            choice = input(human_review_instruction()).strip().lower()
+
+            if choice == "y":
+                manifest[entity_id].append(save_path)
+                print("✓ Accepted.\n")
+            elif choice == "n":
+                print("Regenerating…")
+                continue
+            elif choice == "s":
+                print("Skipping this variant.")
+                continue
+            elif choice == "q":
+                print("Quitting early.")
+                break
+            else:
+                print("Unrecognized; automatically accepting.")
+                manifest[entity_id].append(save_path)
+
+    # --------------------------------------------------------
+    # SAVE MANIFEST
+    # --------------------------------------------------------
+    ensure_dir(os.path.dirname(MANIFEST_PATH))
+    with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+
+    print("\n✓ Phase 5 complete.")
+    print(f"Reference image manifest saved → {MANIFEST_PATH}")
+
+
+if __name__ == "__main__":
+    main()

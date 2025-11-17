@@ -76,11 +76,60 @@ def multiline_input(prompt: str) -> str | None:
         if upper == "APPROVE":
             return "APPROVE"
         if upper == "END":
+            print("✓ Feedback received.")
             break
-        lines.append(line)
+        # Only add non-blank lines
+        if stripped:
+            lines.append(line)
 
     text = "\n".join(lines).strip()
     return text if text else None
+
+
+def parse_scene_specific_feedback(feedback_text: str) -> dict:
+    """
+    Parse feedback text that may contain scene-specific feedback.
+
+    Lines starting with "#: " (where # is a number) are treated as feedback for scene #.
+    Other lines are treated as general feedback.
+
+    Returns: dict with keys:
+        - "scene_feedback": {scene_number: [list of feedback strings]}
+        - "general": [list of general feedback strings]
+    """
+    if not feedback_text or not feedback_text.strip():
+        return {"scene_feedback": {}, "general": []}
+
+    scene_feedback = {}
+    general = []
+
+    for line in feedback_text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+
+        # Check if line starts with scene number pattern: "#: " or "#:"
+        if ":" in line:
+            parts = line.split(":", 1)
+            scene_prefix = parts[0].strip()
+            feedback_content = parts[1].strip() if len(parts) > 1 else ""
+
+            # Try to parse scene number
+            try:
+                scene_num = int(scene_prefix)
+                if feedback_content:  # Only add if there's actual feedback
+                    if scene_num not in scene_feedback:
+                        scene_feedback[scene_num] = []
+                    scene_feedback[scene_num].append(feedback_content)
+                continue
+            except ValueError:
+                # Not a scene number, treat as general feedback
+                pass
+
+        # General feedback
+        general.append(line)
+
+    return {"scene_feedback": scene_feedback, "general": general}
 
 
 def ensure_dir(path: str) -> None:
@@ -243,10 +292,7 @@ def pretty_print_plan(plan: dict) -> None:
         print("(none)")
     else:
         for s in scene_map:
-            print(
-                f"- scene {s.get('scene_number')} "
-                f"(env: {s.get('environment')})"
-            )
+            print(f"- scene {s.get('scene_number')} " f"(env: {s.get('environment')})")
             prim = s.get("primary_entities") or []
             sec = s.get("secondary_entities") or []
             if prim:
@@ -343,7 +389,10 @@ def main():
 
         # Ask human
         fb = multiline_input(
-            "\nProvide feedback on reference planning, or APPROVE to accept:"
+            "\nProvide feedback on reference planning, or APPROVE to accept:\n"
+            "(You can target specific scenes by starting a line with '#: ' where # is the scene number.\n"
+            "Example: '2: Change primary entities to include teddy_bear_alive' targets scene 2.\n"
+            "Lines without a scene number are treated as general feedback.)"
         )
 
         if fb == "APPROVE":
@@ -351,8 +400,35 @@ def main():
             final_plan = plan
             break
 
-        # Use feedback to refine
-        human_feedback = fb or ""
+        # Parse and format feedback
+        if fb and fb != "APPROVE":
+            parsed_feedback = parse_scene_specific_feedback(fb)
+
+            # Format feedback for the planner
+            feedback_parts = []
+
+            # Add scene-specific feedback
+            if parsed_feedback.get("scene_feedback"):
+                for scene_num in sorted(parsed_feedback["scene_feedback"].keys()):
+                    feedbacks = parsed_feedback["scene_feedback"][scene_num]
+                    feedback_parts.append(
+                        f"SCENE {scene_num} FEEDBACK:\n"
+                        + "\n".join(f"- {f}" for f in feedbacks)
+                    )
+
+            # Add general feedback
+            if parsed_feedback.get("general"):
+                general_text = "\n".join(parsed_feedback["general"])
+                if general_text.strip():
+                    feedback_parts.append(f"GENERAL FEEDBACK:\n{general_text}")
+
+            # Combine all feedback
+            human_feedback = (
+                "\n\n".join(feedback_parts).strip() if feedback_parts else ""
+            )
+        else:
+            human_feedback = ""
+
         critic_feedback = critic.get("recommended_fixes", "")
         iteration += 1
 
@@ -369,13 +445,19 @@ def main():
     project_root = os.path.dirname(os.path.abspath(__file__))
     out_dir = project_root  # write core JSONs at project root
 
-    with open(os.path.join(out_dir, "reference_entities.json"), "w", encoding="utf-8") as f:
+    with open(
+        os.path.join(out_dir, "reference_entities.json"), "w", encoding="utf-8"
+    ) as f:
         json.dump(reference_entities, f, indent=2, ensure_ascii=False)
 
-    with open(os.path.join(out_dir, "reference_image_plan.json"), "w", encoding="utf-8") as f:
+    with open(
+        os.path.join(out_dir, "reference_image_plan.json"), "w", encoding="utf-8"
+    ) as f:
         json.dump(reference_image_plan, f, indent=2, ensure_ascii=False)
 
-    with open(os.path.join(out_dir, "scene_reference_map.json"), "w", encoding="utf-8") as f:
+    with open(
+        os.path.join(out_dir, "scene_reference_map.json"), "w", encoding="utf-8"
+    ) as f:
         json.dump(scene_reference_map, f, indent=2, ensure_ascii=False)
 
     with open(
