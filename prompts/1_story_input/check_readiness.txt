@@ -1,0 +1,19 @@
+Evaluate whether this advertisement script is production-ready for the specified duration (in seconds).
+
+READY means:
+- emotionally coherent
+- narratively clear
+- paced appropriately for the requested duration
+- product integrated naturally
+- transitions flow cleanly
+- no vagueness or filler
+- consistent tone
+- nothing implicitly contradicts human direction
+
+Do NOT mention the duration explicitly in your reasoning.
+
+Return ONLY JSON exactly in this format:
+{
+  "ready": true/false,
+  "reason": "short explanation"
+}

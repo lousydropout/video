@@ -1,0 +1,95 @@
+{
+  "total_duration": 30,
+  "scenes": [
+    {
+      "scene_number": 1,
+      "duration": 6,
+      "environment": "park_sunny",
+      "description": "A young girl around 5 years old with curly brown hair and bright eyes strolls happily along a winding paved path in a bright, sunlit park. She wears a light pink dress and white sneakers. Green grass and tall trees with lush leaves surround her. Birds chirp melodiously and a gentle breeze rustles the leaves. She smiles carefree, holding a medium-sized plush teddy bear with soft brown fur and a red ribbon around its neck.",
+      "description_word_count": 75,
+      "camera": {
+        "framing": "medium wide shot capturing the girl walking along the path with surrounding trees and grass",
+        "movement": "slow tracking shot following the girl from the front as she walks",
+        "lens": "standard 50mm lens for natural perspective",
+        "focus": "sharp focus on the girl and teddy bear, background softly blurred"
+      },
+      "lighting": "warm natural sunlight casting soft shadows, bright and inviting",
+      "style": "warm, soft, and inviting with pastel colors and smooth, fluid animation emphasizing carefree happiness"
+    },
+    {
+      "scene_number": 2,
+      "duration": 6,
+      "environment": "park_thunderclouds_gathering",
+      "description": "The same park now under dark, gathering thunderclouds that dim the warm sunlight. The girl steps back, startled and fearful, her eyes wide and body tense. A large, dark-colored dog with sharp features and an aggressive stance suddenly appears on the paved path, growling and baring its teeth. The wind picks up, rustling leaves more violently, and distant thunder rumbles, heightening the tense atmosphere.",
+      "description_word_count": 64,
+      "camera": {
+        "framing": "medium shot capturing the girl stepping back and the menacing dog facing her",
+        "movement": "slow zoom in on the dog's face to emphasize menace, then cut to girl's fearful reaction",
+        "lens": "slightly wide 35mm lens to capture both characters and environment",
+        "focus": "sharp focus on girl and dog, background slightly darkened"
+      },
+      "lighting": "dim, shadowed by thick dark clouds with cool blue-gray tones, subtle flickers of lightning in the distance",
+      "style": "tense and dramatic with darker color palette and fluid animation showing sudden fear"
+    },
+    {
+      "scene_number": 3,
+      "duration": 5,
+      "environment": "park_thunderclouds_gathering",
+      "description": "The teddy bear magically comes to life, standing upright bravely between the girl and the menacing dog. Its soft brown fur glows warmly with a gentle golden light radiating from its body. The bear's black button eyes gleam with determination and protectiveness. The warm glow brightens the dim park surroundings, casting comforting, soft shadows on the girl's worried face as she clutches the bear tightly.",
+      "description_word_count": 65,
+      "camera": {
+        "framing": "close medium shot focusing on the teddy bear standing firm with the girl just behind",
+        "movement": "slow dolly in to emphasize the bear's glowing presence",
+        "lens": "standard 50mm lens for intimate detail",
+        "focus": "sharp focus on teddy bear and girl's face, background softly blurred"
+      },
+      "lighting": "warm glowing light from teddy bear contrasts with dim ambient lighting, creating a magical realism effect",
+      "style": "warm, soft, and magical realism with smooth animation highlighting the bear's protective stance"
+    },
+    {
+      "scene_number": 4,
+      "duration": 5,
+      "environment": "park_thunderclouds_gathering",
+      "description": "From the teddy bear's chest, a powerful, focused beam of bright golden light shoots straight upward, piercing the dark thunderclouds. The beam is intense and radiant, visibly dispersing and breaking apart the heavy clouds to reveal patches of clearing blue sky. The menacing dog, startled and fearful, visibly recoils and then turns sharply, running away along the paved path with its tail lowered.",
+      "description_word_count": 63,
+      "camera": {
+        "framing": "wide vertical shot capturing the full height of the light beam ascending through the clouds and the dog retreating",
+        "movement": "slow upward tilt following the beam, then quick pan to the dog running away",
+        "lens": "telephoto 85mm lens to compress the scene and emphasize beam intensity",
+        "focus": "sharp focus on light beam and dog, background clouds slightly softened"
+      },
+      "lighting": "bright golden beam contrasts with dark clouds, dynamic lighting with visible cloud dispersal effects",
+      "style": "magical realism with dramatic lighting and fluid animation emphasizing power and relief"
+    },
+    {
+      "scene_number": 5,
+      "duration": 4,
+      "environment": "park_after_light_beam",
+      "description": "The park returns to a calm state with soft, warm light and patches of sunlight filtering through clearing skies. The girl, now comforted, hugs the glowing teddy bear tightly, her face showing relief and newfound bravery. Birds begin chirping again and a gentle breeze softly stirs the grass and leaves around them. The environment feels peaceful and safe once more.",
+      "description_word_count": 60,
+      "camera": {
+        "framing": "medium close-up on the girl hugging the teddy bear tightly",
+        "movement": "gentle slow zoom in to capture emotional comfort",
+        "lens": "standard 50mm lens for natural intimacy",
+        "focus": "sharp focus on girl and teddy bear, softly blurred background"
+      },
+      "lighting": "soft warm light with golden hues and gentle shadows, natural and inviting",
+      "style": "warm, soft, and peaceful with smooth animation emphasizing relief and comfort"
+    },
+    {
+      "scene_number": 6,
+      "duration": 4,
+      "environment": "cozy_room_evening",
+      "description": "Inside a small, cozy bedroom warmly lit in the evening, the girl sits on a small bed covered with colorful blankets. She hugs her teddy bear close, which softly glows with a warm light. Soft indoor lighting casts gentle shadows on scattered toys around the room. The girl's expression is calm and safe, with faint night sounds audible through a window showing a dark sky.",
+      "description_word_count": 65,
+      "camera": {
+        "framing": "medium shot of the girl sitting on the bed hugging the teddy bear",
+        "movement": "static shot with slight slow push in to emphasize safety",
+        "lens": "standard 50mm lens for natural perspective",
+        "focus": "sharp focus on girl and teddy bear, room softly detailed"
+      },
+      "lighting": "soft warm indoor lighting with cozy amber tones, gentle shadows enhancing comfort",
+      "style": "warm, soft, and inviting with smooth animation emphasizing safety and calm"
+    }
+  ]
+}

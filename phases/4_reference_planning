@@ -1,0 +1,421 @@
+#!/usr/bin/env python3
+import os
+import sys
+import json
+from datetime import datetime
+from openai import OpenAI
+
+MODEL = "gpt-4.1-mini"
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# ============================================================
+# UTILITIES
+# ============================================================
+
+
+def load_prompt(filename: str) -> str:
+    """
+    Load a prompt file from prompts/4_reference_planning/.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    prompts_dir = os.path.join(
+        os.path.dirname(script_dir),
+        "prompts",
+        "4_reference_planning",
+    )
+    path = os.path.join(prompts_dir, filename)
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def llm_json(system_prompt: str, user_content: str) -> dict:
+    """
+    Call the LLM and force JSON output.
+    """
+    resp = client.chat.completions.create(
+        model=MODEL,
+        temperature=0.2,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ],
+    )
+    content = resp.choices[0].message.content
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        print("❌ Failed to parse JSON from LLM. Raw content:")
+        print(content)
+        sys.exit(1)
+
+
+def multiline_input(prompt: str) -> str | None:
+    """
+    Read multi-line human feedback until 'END' or 'APPROVE'.
+    Returns 'APPROVE' or the feedback string or None if empty.
+    """
+    print(prompt)
+    print("  - Type your feedback, then 'END' on its own line to finish")
+    print("  - Type 'APPROVE' on its own line to accept as-is\n")
+
+    lines: list[str] = []
+    while True:
+        try:
+            line = input()
+        except EOFError:
+            # Treat EOF as approve
+            return "APPROVE"
+        except KeyboardInterrupt:
+            print("\n\n❌ Interrupted by user.")
+            sys.exit(1)
+
+        stripped = line.strip()
+        upper = stripped.upper()
+
+        if upper == "APPROVE":
+            return "APPROVE"
+        if upper == "END":
+            break
+        lines.append(line)
+
+    text = "\n".join(lines).strip()
+    return text if text else None
+
+
+def ensure_dir(path: str) -> None:
+    os.makedirs(path, exist_ok=True)
+
+
+# ============================================================
+# AGENTS
+# ============================================================
+
+
+def run_reference_planner(
+    bible: dict,
+    scenes: dict,
+    human_feedback: str | None = None,
+    critic_feedback: str | None = None,
+) -> dict:
+    """
+    Primary reference-planning agent:
+    - picks reference entities
+    - plans per-entity images
+    - maps scenes to entities
+    Expects to return JSON with:
+      - reference_entities
+      - reference_image_plan
+      - scene_reference_map
+    """
+    sys_prompt = load_prompt("reference_planner.txt")
+
+    payload = {
+        "bible": bible,
+        "scenes": scenes,
+        "human_feedback": human_feedback or "",
+        "critic_feedback": critic_feedback or "",
+    }
+
+    return llm_json(sys_prompt, json.dumps(payload))
+
+
+def run_reference_critic(
+    bible: dict,
+    scenes: dict,
+    plan: dict,
+) -> dict:
+    """
+    Critic for coverage + sanity:
+    - Are all key characters/products covered?
+    - Too many refs?
+    - Clear mapping scene -> refs?
+    Returns JSON:
+    {
+      "pass": true/false,
+      "issues": [...],
+      "missing_entities": [...],
+      "overconstrained": [...],
+      "recommended_fixes": "..."
+    }
+    """
+    sys_prompt = load_prompt("reference_planner_critic.txt")
+
+    payload = {
+        "bible": bible,
+        "scenes": scenes,
+        "plan": plan,
+    }
+
+    return llm_json(sys_prompt, json.dumps(payload))
+
+
+def build_empty_manifest(reference_image_plan: list[dict]) -> dict:
+    """
+    Build Artifact D: reference_images_manifest.json skeleton based on reference_image_plan.
+
+    Expected plan item shape:
+    {
+      "entity_id": "teddy_bear_alive",
+      "num_variants": 2,
+      ... (ignored here)
+    }
+    """
+    images: list[dict] = []
+
+    for item in reference_image_plan:
+        entity_id = item.get("entity_id")
+        num_variants = item.get("num_variants", 1)
+
+        if not entity_id:
+            continue
+        try:
+            num_variants_int = int(num_variants)
+        except (TypeError, ValueError):
+            num_variants_int = 1
+
+        if num_variants_int < 1:
+            num_variants_int = 1
+
+        for idx in range(1, num_variants_int + 1):
+            images.append(
+                {
+                    "entity_id": entity_id,
+                    "variant_index": idx,
+                    "reference_image_path": None,
+                    "prompt_used": None,
+                    "negative_prompt_used": None,
+                    "metadata": {},
+                }
+            )
+
+    return {"images": images}
+
+
+# ============================================================
+# HUMAN-FACING SUMMARIES
+# ============================================================
+
+
+def pretty_print_plan(plan: dict) -> None:
+    """
+    Show a human-readable summary of the plan so the user knows what they're approving.
+    """
+    ref_ents = plan.get("reference_entities", [])
+    img_plan = plan.get("reference_image_plan", [])
+    scene_map = plan.get("scene_reference_map", [])
+
+    print("\n================ REFERENCE ENTITIES ================")
+    if not ref_ents:
+        print("(none)")
+    else:
+        for ent in ref_ents:
+            print(f"- id: {ent.get('entity_id')}")
+            if ent.get("type"):
+                print(f"  type: {ent.get('type')}")
+            if ent.get("role"):
+                print(f"  role: {ent.get('role')}")
+            if ent.get("priority"):
+                print(f"  priority: {ent.get('priority')}")
+            if ent.get("description"):
+                print(f"  desc: {ent.get('description')}")
+            print()
+
+    print("================ REFERENCE IMAGE PLAN ================")
+    if not img_plan:
+        print("(none)")
+    else:
+        for item in img_plan:
+            print(f"- entity_id: {item.get('entity_id')}")
+            print(f"  num_variants: {item.get('num_variants')}")
+            if item.get("suggested_aspect_ratios"):
+                print(f"  aspect_ratios: {item.get('suggested_aspect_ratios')}")
+            if item.get("framing_notes"):
+                print(f"  framing_notes: {item.get('framing_notes')}")
+            if item.get("lighting_notes"):
+                print(f"  lighting_notes: {item.get('lighting_notes')}")
+            if item.get("usage_notes"):
+                print(f"  usage_notes: {item.get('usage_notes')}")
+            print()
+
+    print("================ SCENE REFERENCE MAP ================")
+    if not scene_map:
+        print("(none)")
+    else:
+        for s in scene_map:
+            print(
+                f"- scene {s.get('scene_number')} "
+                f"(env: {s.get('environment')})"
+            )
+            prim = s.get("primary_entities") or []
+            sec = s.get("secondary_entities") or []
+            if prim:
+                print(f"  primary_entities: {prim}")
+            if sec:
+                print(f"  secondary_entities: {sec}")
+            if s.get("notes"):
+                print(f"  notes: {s.get('notes')}")
+            print()
+
+
+def pretty_print_critic(critic: dict) -> None:
+    print("\n================ REFERENCE PLAN CRITIC ================")
+    print(f"pass: {critic.get('pass')}")
+    issues = critic.get("issues") or []
+    if issues:
+        print("\nIssues:")
+        for i in issues:
+            print(f" - {i}")
+    missing = critic.get("missing_entities") or []
+    if missing:
+        print("\nMissing entities:")
+        for m in missing:
+            print(f" - {m}")
+    over = critic.get("overconstrained") or []
+    if over:
+        print("\nPossibly overconstrained:")
+        for o in over:
+            print(f" - {o}")
+    if critic.get("recommended_fixes"):
+        print("\nRecommended fixes:")
+        print(critic["recommended_fixes"])
+    print("======================================================")
+
+
+# ============================================================
+# MAIN ORCHESTRATOR
+# ============================================================
+
+
+def main():
+    if len(sys.argv) < 3:
+        print(f"Usage: {sys.argv[0]} <bible_json> <scenes_json>")
+        sys.exit(1)
+
+    bible_path = sys.argv[1]
+    scenes_path = sys.argv[2]
+
+    # ------------ Load bible ------------
+    try:
+        with open(bible_path, "r", encoding="utf-8") as f:
+            raw_bible = json.load(f)
+        bible = raw_bible.get("canonical_json", raw_bible)
+    except Exception as e:
+        print(f"❌ Failed to load bible: {e}")
+        sys.exit(1)
+
+    # ------------ Load scenes -----------
+    try:
+        with open(scenes_path, "r", encoding="utf-8") as f:
+            scenes = json.load(f)
+    except Exception as e:
+        print(f"❌ Failed to load scenes: {e}")
+        sys.exit(1)
+
+    print("✓ Loaded bible and scenes.")
+    print("=== Phase 4 — Reference Planning Orchestrator ===\n")
+
+    human_feedback: str | None = None
+    critic_feedback: str | None = None
+    iteration = 1
+
+    while True:
+        print(f"\n🔄 ITERATION {iteration}: generating reference plans…")
+
+        plan = run_reference_planner(
+            bible=bible,
+            scenes=scenes,
+            human_feedback=human_feedback,
+            critic_feedback=critic_feedback,
+        )
+
+        # Basic shape sanity check
+        if not isinstance(plan, dict):
+            print("❌ Plan is not a JSON object. Aborting.")
+            sys.exit(1)
+
+        # Critic pass
+        critic = run_reference_critic(bible=bible, scenes=scenes, plan=plan)
+
+        # Present to human
+        pretty_print_plan(plan)
+        pretty_print_critic(critic)
+
+        # Ask human
+        fb = multiline_input(
+            "\nProvide feedback on reference planning, or APPROVE to accept:"
+        )
+
+        if fb == "APPROVE":
+            print("\n✓ Human approved reference plan.")
+            final_plan = plan
+            break
+
+        # Use feedback to refine
+        human_feedback = fb or ""
+        critic_feedback = critic.get("recommended_fixes", "")
+        iteration += 1
+
+    # ========================================================
+    # BUILD ARTIFACTS A–D
+    # ========================================================
+    reference_entities = final_plan.get("reference_entities", [])
+    reference_image_plan = final_plan.get("reference_image_plan", [])
+    scene_reference_map = final_plan.get("scene_reference_map", [])
+
+    manifest = build_empty_manifest(reference_image_plan)
+
+    # ------------ Save canonical outputs ------------
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    out_dir = project_root  # write core JSONs at project root
+
+    with open(os.path.join(out_dir, "reference_entities.json"), "w", encoding="utf-8") as f:
+        json.dump(reference_entities, f, indent=2, ensure_ascii=False)
+
+    with open(os.path.join(out_dir, "reference_image_plan.json"), "w", encoding="utf-8") as f:
+        json.dump(reference_image_plan, f, indent=2, ensure_ascii=False)
+
+    with open(os.path.join(out_dir, "scene_reference_map.json"), "w", encoding="utf-8") as f:
+        json.dump(scene_reference_map, f, indent=2, ensure_ascii=False)
+
+    with open(
+        os.path.join(out_dir, "reference_images_manifest.json"),
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(manifest, f, indent=2, ensure_ascii=False)
+
+    print("\n✓ Wrote:")
+    print("  - reference_entities.json")
+    print("  - reference_image_plan.json")
+    print("  - scene_reference_map.json")
+    print("  - reference_images_manifest.json (empty scaffold for Phase 5)")
+
+    # ------------ Archive composite artifact ------------
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    artifacts_dir = os.path.join(
+        os.path.dirname(project_root),
+        "artifacts",
+        "4_reference_planning",
+    )
+    ensure_dir(artifacts_dir)
+
+    archive = {
+        "bible_path": bible_path,
+        "scenes_path": scenes_path,
+        "reference_entities": reference_entities,
+        "reference_image_plan": reference_image_plan,
+        "scene_reference_map": scene_reference_map,
+        "reference_images_manifest": manifest,
+    }
+
+    archive_path = os.path.join(artifacts_dir, f"plan_{ts}.json")
+    with open(archive_path, "w", encoding="utf-8") as f:
+        json.dump(archive, f, indent=2, ensure_ascii=False)
+
+    print(f"✓ Archived combined plan → {archive_path}")
+    print("\nPhase 4 complete.\n")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+import json
+import sys
+import os
+from datetime import datetime
+from openai import OpenAI
+
+# Configuration
+MODEL = "gpt-4.1-mini"
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+
+def load_prompt(name):
+    """Load a prompt file from prompts/2_world_bible/ folder."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    prompts_dir = os.path.join(os.path.dirname(script_dir), "prompts", "2_world_bible")
+    path = os.path.join(prompts_dir, name)
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def llm(messages, model=None):
+    """Minimal wrapper over OpenAI."""
+    if model is None:
+        model = MODEL
+    try:
+        return (
+            client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.2,
+            )
+            .choices[0]
+            .message.content
+        )
+    except Exception as e:
+        print(f"❌ API call failed: {e}")
+        sys.exit(1)
+
+
+# ============================================================
+# PASS 1 — VIDEO BIBLE ENGINE (now generic + reference_entities)
+# ============================================================
+
+
+def generate_bible(user_prompt):
+    """Generate bible with canonical_json + readable_text + reference_entities."""
+    sys_prompt = load_prompt("video_bible_engine.txt")
+    output = llm(
+        [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+    )
+    try:
+        bible = json.loads(output)
+        # Validate required keys
+        if "canonical_json" not in bible:
+            raise ValueError("Missing 'canonical_json' key in bible output")
+        return bible
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse bible JSON: {e}")
+        print(f"Raw output (first 500 chars): {output[:500]}...")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"❌ Invalid bible structure: {e}")
+        print(f"Raw output (first 500 chars): {output[:500]}...")
+        sys.exit(1)
+
+
+# ============================================================
+# PASS 2 — COMPLETENESS / MISSING ATTRIBUTE CRITIC
+# (Ensures bible is fully specified & reference_entities complete)
+# ============================================================
+
+
+def missing_attribute_pass(bible_json):
+    sys_prompt = load_prompt("missing_attribute_critic.txt")
+    output = llm(
+        [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": json.dumps(bible_json["canonical_json"])},
+        ]
+    )
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse missing attribute critic JSON: {e}")
+        print(f"Raw output (first 500 chars): {output[:500]}...")
+        # Return a safe default that will trigger regeneration
+        return {
+            "needs_revision": True,
+            "missing_attributes": ["JSON parsing failed - retrying"],
+        }
+
+
+# ============================================================
+# PASS 3 — CINEMATOGRAPHY CRITIC
+# (Recommendation only, never blocks progress)
+# ============================================================
+
+
+def cinematography_pass(bible_json):
+    sys_prompt = load_prompt("cinematography_critic.txt")
+    output = llm(
+        [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": json.dumps(bible_json["canonical_json"])},
+        ]
+    )
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError as e:
+        print(f"⚠️  Failed to parse cinematography critic JSON: {e}")
+        print(f"Raw output (first 500 chars): {output[:500]}...")
+        # Return a safe default (non-blocking)
+        return {
+            "notes_for_human": ["JSON parsing failed - please review manually"],
+            "overall": "pass",
+        }
+
+
+# ============================================================
+# MAIN ORCHESTRATION
+# ============================================================
+
+
+def run_bible_orchestrator():
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} <text_file>")
+        sys.exit(1)
+
+    text_file = sys.argv[1]
+    try:
+        with open(text_file, "r", encoding="utf-8") as f:
+            user_prompt = f.read().strip()
+    except Exception as e:
+        print(f"❌ Failed to read prompt file: {e}")
+        sys.exit(1)
+
+    print(f"✓ Loaded user story prompt ({len(user_prompt)} chars)\n")
+
+    # --------------------------------------------------------
+    # PASS 1 — INITIAL BIBLE
+    # --------------------------------------------------------
+    print("[PASS 1] Generating initial bible…")
+    bible = generate_bible(user_prompt)
+    print("✓ Initial bible generated.\n")
+
+    # --------------------------------------------------------
+    # PASS 2 — COMPLETENESS / MISSING ATTRIBUTE CHECK
+    # --------------------------------------------------------
+    print("[PASS 2] Checking for missing attributes…")
+
+    for iteration in range(6):
+        print(f"  → Iteration {iteration+1}/6")
+        if iteration == 5:
+            print("  ⚠️  Final iteration - proceeding even if incomplete")
+
+        result = missing_attribute_pass(bible)
+
+        if not result.get("needs_revision", False):
+            print("✓ Bible is complete (no missing attributes).\n")
+            break
+
+        missing = result.get("missing_attributes", [])
+        if not missing:
+            print("✓ No missing attributes specified - assuming complete.\n")
+            break
+
+        print(f"  ⚠️  Found {len(missing)} missing items → regenerating bible…")
+
+        feedback = (
+            "Please update the bible by adding these missing attributes:\n"
+            + json.dumps(missing, indent=2)
+        )
+
+        bible = generate_bible(user_prompt + "\n\nFEEDBACK:\n" + feedback)
+
+    # --------------------------------------------------------
+    # PASS 3 — CINEMATOGRAPHY CRITIC + HUMAN LOOP
+    # --------------------------------------------------------
+    print("[PASS 3] Cinematography review\n")
+
+    while True:
+        print("=" * 70)
+        print("CURRENT WORLD BIBLE")
+        print("=" * 70)
+
+        if bible.get("readable_text"):
+            print("\n--- Human-readable bible ---\n")
+            print(bible["readable_text"])
+
+        print("\n--- Canonical JSON ---\n")
+        print(json.dumps(bible["canonical_json"], indent=2))
+
+        print("\nRunning cinematography critic…")
+        critique = cinematography_pass(bible)
+
+        print("\nCINEMATOGRAPHY FEEDBACK:")
+        for note in critique.get("notes_for_human", []):
+            print(" -", note)
+
+        print("\nReviewer says:", critique.get("overall", "(no summary)"))
+        print("\nYour options:")
+        print("  - Type 'APPROVE' to finalize the bible")
+        print("  - Or type feedback lines followed by 'END'")
+
+        # Collect user feedback
+        feedback_lines = []
+        approved = False
+        while True:
+            try:
+                line = input()
+            except EOFError:
+                print("\n✓ Approved (EOF).\n")
+                approved = True
+                break
+            except KeyboardInterrupt:
+                print("\n\n❌ Interrupted by user. Exiting.")
+                sys.exit(1)
+
+            stripped = line.strip().upper()
+            if stripped == "APPROVE":
+                approved = True
+                print("✓ Approved.\n")
+                break
+            if stripped == "END":
+                if not feedback_lines:
+                    approved = True
+                    print("✓ Approved (empty END).\n")
+                else:
+                    print(f"✓ Received {len(feedback_lines)} line(s) of feedback.\n")
+                break
+            feedback_lines.append(line)
+
+        if approved:
+            break
+
+        # Apply user feedback
+        human_feedback = "\n".join(feedback_lines)
+        if human_feedback:
+            print("\nRegenerating bible with your updates…\n")
+        else:
+            print("\nRegenerating bible…\n")
+
+        bible = generate_bible(user_prompt + "\n\nHUMAN_FEEDBACK:\n" + human_feedback)
+
+    # --------------------------------------------------------
+    # SAVE RESULT
+    # --------------------------------------------------------
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    artifacts_dir = os.path.join(
+        os.path.dirname(script_dir), "artifacts", "2_world_bible"
+    )
+    os.makedirs(artifacts_dir, exist_ok=True)
+    out_path = os.path.join(artifacts_dir, f"bible_{ts}.json")
+
+    try:
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(bible, f, indent=2, ensure_ascii=False)
+        print(f"✓ Final bible saved → {out_path}")
+    except Exception as e:
+        print(f"❌ Failed to save bible: {e}")
+        sys.exit(1)
+
+    print("\nPhase 2 complete.\n")
+
+
+if __name__ == "__main__":
+    run_bible_orchestrator()

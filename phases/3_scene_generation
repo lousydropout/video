@@ -1,0 +1,651 @@
+#!/usr/bin/env python3
+import json
+import sys
+import os
+from openai import OpenAI
+
+# Configuration
+MODEL = "gpt-4.1-mini"
+TARGET_DURATION = 30  # Default target duration in seconds
+MAX_SKELETON_RETRIES = 10
+MAX_EXPANSION_RETRIES = 20
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+# ============================================================
+#          Helper: multi-line human input
+# ============================================================
+def read_multiline_input(prompt=""):
+    """Read multi-line input from user, ending with 'END'."""
+    print(prompt)
+    print("(Type 'END' on its own line to finish your message.)")
+    lines = []
+    while True:
+        try:
+            line = input()
+        except EOFError:
+            break
+        except KeyboardInterrupt:
+            print("\n\n❌ Interrupted by user.")
+            sys.exit(1)
+        if line.strip().upper() == "END":
+            print("✓ Feedback received.")
+            break
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def parse_scene_specific_feedback(feedback_text):
+    """
+    Parse feedback text that may contain scene-specific feedback.
+
+    Lines starting with "N: " (where N is a number) are treated as feedback for scene N.
+    Other lines are treated as general feedback.
+
+    Returns: dict with keys:
+        - "scene_feedback": {scene_number: [list of feedback strings]}
+        - "general": [list of general feedback strings]
+    """
+    if not feedback_text or not feedback_text.strip():
+        return {"scene_feedback": {}, "general": []}
+
+    scene_feedback = {}
+    general = []
+
+    for line in feedback_text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+
+        # Check if line starts with scene number pattern: "N: " or "N:"
+        if ":" in line:
+            parts = line.split(":", 1)
+            scene_prefix = parts[0].strip()
+            feedback_content = parts[1].strip() if len(parts) > 1 else ""
+
+            # Try to parse scene number
+            try:
+                scene_num = int(scene_prefix)
+                if feedback_content:  # Only add if there's actual feedback
+                    if scene_num not in scene_feedback:
+                        scene_feedback[scene_num] = []
+                    scene_feedback[scene_num].append(feedback_content)
+                continue
+            except ValueError:
+                # Not a scene number, treat as general feedback
+                pass
+
+        # General feedback
+        general.append(line)
+
+    return {"scene_feedback": scene_feedback, "general": general}
+
+
+# ============================================================
+#          Helper: Load prompts
+# ============================================================
+def load_prompt(filename):
+    """Load a prompt file from prompts/3_scene_generation/ directory."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    prompts_dir = os.path.join(
+        os.path.dirname(script_dir), "prompts", "3_scene_generation"
+    )
+    prompt_path = os.path.join(prompts_dir, filename)
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+# ============================================================
+#                Load Bible JSON
+# ============================================================
+def load_bible(bible_file):
+    """Load and validate bible JSON file."""
+    try:
+        with open(bible_file, "r", encoding="utf-8") as f:
+            bible_data = json.load(f)
+
+        # Extract canonical_json if present, otherwise use the whole thing
+        bible = bible_data.get("canonical_json", bible_data)
+
+        # Validate structure
+        if not isinstance(bible, dict):
+            print("❌ Bible must be a JSON object")
+            sys.exit(1)
+
+        print(f"✓ Loaded bible from '{bible_file}'")
+        return bible
+    except FileNotFoundError:
+        print(f"❌ Bible file not found: {bible_file}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse bible JSON: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Error loading bible: {e}")
+        sys.exit(1)
+
+
+# ============================================================
+#                     Utility: Call OpenAI
+# ============================================================
+def call_openai(messages):
+    """Call OpenAI API with error handling."""
+    try:
+        r = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            temperature=0.2,
+        )
+        return r.choices[0].message.content
+    except Exception as e:
+        print(f"❌ API call failed: {e}")
+        sys.exit(1)
+
+
+# ============================================================
+#              Wrapper Functions For Each Agent
+# ============================================================
+def generate_skeleton_scenes(bible):
+    """Generate initial skeleton scenes (descriptions + rough_duration)."""
+    SCENE_SKELETON_SYS = load_prompt("scene_skeleton_sys.txt")
+    messages = [
+        {"role": "system", "content": SCENE_SKELETON_SYS},
+        {"role": "user", "content": json.dumps(bible)},
+    ]
+    content = call_openai(messages)
+    return content
+
+
+def generate_expanded_scenes(
+    bible, skeleton, human_feedback=None, critic_feedback=None, previous_scenes=None
+):
+    """Expand skeleton into fully specified scenes."""
+    SCENE_EXPANDER_SYS = load_prompt("scene_expander_sys.txt")
+    messages = [
+        {"role": "system", "content": SCENE_EXPANDER_SYS},
+        {
+            "role": "user",
+            "content": json.dumps(
+                {
+                    "bible": bible,
+                    "skeleton_scenes": skeleton,
+                    "previous_scenes": previous_scenes,
+                }
+            ),
+        },
+    ]
+    if critic_feedback:
+        messages.append(
+            {
+                "role": "user",
+                "content": f"CRITIC FEEDBACK TO APPLY:\n{critic_feedback}",
+            }
+        )
+    if human_feedback:
+        messages.append(
+            {
+                "role": "user",
+                "content": f"HUMAN FEEDBACK TO APPLY:\n{human_feedback}",
+            }
+        )
+    content = call_openai(messages)
+    return content
+
+
+def modify_single_scene(bible, scene, feedback_lines, total_duration):
+    """Modify a single scene based on feedback.
+
+    Args:
+        bible: The canonical bible JSON
+        scene: The single scene object to modify
+        feedback_lines: List of feedback strings for this scene
+        total_duration: Total duration of all scenes (for context only)
+
+    Returns:
+        Modified scene JSON string
+    """
+    SCENE_MODIFIER_SYS = load_prompt("scene_modifier_sys.txt")
+
+    feedback_text = "\n".join(f"- {f}" for f in feedback_lines)
+
+    messages = [
+        {"role": "system", "content": SCENE_MODIFIER_SYS},
+        {
+            "role": "user",
+            "content": json.dumps(
+                {
+                    "bible": bible,
+                    "scene": scene,  # Only this one scene
+                    "total_duration": total_duration,  # Just for context
+                    "feedback": feedback_text,  # Only feedback for this scene
+                }
+            ),
+        },
+    ]
+
+    content = call_openai(messages)
+    return content
+
+
+def scene_format_check(bible, scene, total_duration):
+    """Per-scene format + bible consistency critic."""
+    SCENE_FORMAT_CRITIC_SYS = load_prompt("scene_format_critic_sys.txt")
+    messages = [
+        {"role": "system", "content": SCENE_FORMAT_CRITIC_SYS},
+        {
+            "role": "user",
+            "content": json.dumps(
+                {
+                    "bible": bible,
+                    "scene": scene,
+                    "total_duration": total_duration,
+                }
+            ),
+        },
+    ]
+    content = call_openai(messages)
+    return content
+
+
+def cinematography_check(scenes_full):
+    """Whole-sequence cinematography critic."""
+    CINEMATOGRAPHY_CRITIC_SYS = load_prompt("cinematography_critic_sys.txt")
+    messages = [
+        {"role": "system", "content": CINEMATOGRAPHY_CRITIC_SYS},
+        {"role": "user", "content": json.dumps(scenes_full)},
+    ]
+    content = call_openai(messages)
+    return content
+
+
+# ============================================================
+#                        MAIN LOGIC
+# ============================================================
+def generate_skeleton_with_retry(bible, target_duration=TARGET_DURATION):
+    """Generate skeleton scenes with retry logic."""
+    print("\n====================================================")
+    print("       PHASE 1: SKELETON SCENE GENERATION")
+    print("====================================================")
+
+    retries = 0
+    while retries < MAX_SKELETON_RETRIES:
+        skeleton_str = generate_skeleton_scenes(bible)
+        try:
+            skeleton = json.loads(skeleton_str)
+        except json.JSONDecodeError as e:
+            retries += 1
+            print(
+                f"❌ Skeleton generator returned invalid JSON (attempt {retries}/{MAX_SKELETON_RETRIES}): {e}"
+            )
+            if retries < MAX_SKELETON_RETRIES:
+                print("Retrying…")
+                continue
+            else:
+                print("❌ Max retries exceeded for skeleton generation.")
+                sys.exit(1)
+
+        if "scenes" not in skeleton:
+            retries += 1
+            print(
+                f"❌ Skeleton JSON missing 'scenes' (attempt {retries}/{MAX_SKELETON_RETRIES})"
+            )
+            if retries < MAX_SKELETON_RETRIES:
+                print("Regenerating…")
+                continue
+            else:
+                print("❌ Max retries exceeded.")
+                sys.exit(1)
+
+        if skeleton.get("total_duration") != target_duration:
+            retries += 1
+            print(
+                f"❌ Skeleton total_duration != {target_duration} (got {skeleton.get('total_duration')}) (attempt {retries}/{MAX_SKELETON_RETRIES})"
+            )
+            if retries < MAX_SKELETON_RETRIES:
+                print("Regenerating…")
+                continue
+            else:
+                print("❌ Max retries exceeded.")
+                sys.exit(1)
+
+        # quick structure sanity check
+        if not all(
+            "scene_number" in s and "description" in s for s in skeleton["scenes"]
+        ):
+            retries += 1
+            print(
+                f"❌ Skeleton scenes missing required fields (attempt {retries}/{MAX_SKELETON_RETRIES})"
+            )
+            if retries < MAX_SKELETON_RETRIES:
+                print("Regenerating…")
+                continue
+            else:
+                print("❌ Max retries exceeded.")
+                sys.exit(1)
+
+        print("\n===== SKELETON SCENES (for reference) =====")
+        print(json.dumps(skeleton, indent=2))
+        return skeleton
+
+    print("❌ Max retries exceeded for skeleton generation.")
+    sys.exit(1)
+
+
+def expand_and_review_scenes(bible, skeleton, target_duration=TARGET_DURATION):
+    """Expand scenes and run through critics with human-in-the-loop."""
+    print("\n====================================================")
+    print("       PHASE 2: EXPANSION + CRITICS + HUMAN LOOP")
+    print("====================================================")
+
+    human_notes = None
+    critic_feedback = None
+    previous_scenes = None
+    expansion_retries = 0
+    skip_expansion = False  # Flag to skip expansion after user feedback modifications
+
+    while expansion_retries < MAX_EXPANSION_RETRIES:
+        if not skip_expansion:
+            print("\n🔄 Expanding scenes with cinematography + lighting…")
+
+            expanded_str = generate_expanded_scenes(
+                bible,
+                skeleton,
+                human_feedback=human_notes,
+                critic_feedback=critic_feedback,
+                previous_scenes=previous_scenes,
+            )
+
+            try:
+                scenes_full = json.loads(expanded_str)
+            except json.JSONDecodeError as e:
+                expansion_retries += 1
+                print(
+                    f"❌ Scene expander returned invalid JSON (attempt {expansion_retries}/{MAX_EXPANSION_RETRIES}): {e}"
+                )
+                if expansion_retries < MAX_EXPANSION_RETRIES:
+                    print("Retrying with no feedback…")
+                    human_notes = None
+                    critic_feedback = None
+                    previous_scenes = None
+                    skip_expansion = False
+                    continue
+                else:
+                    print("❌ Max retries exceeded for scene expansion.")
+                    sys.exit(1)
+
+            if "scenes" not in scenes_full:
+                expansion_retries += 1
+                print(
+                    f"❌ Expanded scenes JSON missing 'scenes' (attempt {expansion_retries}/{MAX_EXPANSION_RETRIES})"
+                )
+                if expansion_retries < MAX_EXPANSION_RETRIES:
+                    print("Retrying…")
+                    human_notes = None
+                    critic_feedback = None
+                    previous_scenes = None
+                    skip_expansion = False
+                    continue
+                else:
+                    print("❌ Max retries exceeded.")
+                    sys.exit(1)
+
+            scenes = scenes_full["scenes"]
+        else:
+            # Skip expansion - we already have modified scenes
+            scenes = scenes_full["scenes"]
+
+        # Calculate and validate duration
+        total_duration = sum(s.get("duration", 0) for s in scenes)
+        scenes_full["total_duration"] = total_duration
+
+        if total_duration != target_duration:
+            print(
+                f"⚠️  Warning: Total duration is {total_duration}, expected {target_duration}"
+            )
+
+        # Precompute word counts and attach them to scenes
+        for s in scenes:
+            desc = s.get("description", "") or ""
+            word_count = len(desc.split())
+            s["description_word_count"] = word_count
+
+        # ------------------ PER-SCENE FORMAT/BIBLE CRITIC ------------------
+        all_pass = True
+        scene_critic_summaries = []
+
+        for s in scenes:
+            scene_num = s.get("scene_number")
+            print(f"\n🔍 Checking scene {scene_num} against bible + format rules…")
+
+            sf_raw = scene_format_check(bible, s, total_duration)
+            try:
+                sf = json.loads(sf_raw)
+            except json.JSONDecodeError as e:
+                print(
+                    f"❌ Scene format critic returned invalid JSON for scene {scene_num}: {e}"
+                )
+                all_pass = False
+                scene_critic_summaries.append(
+                    f"Scene {scene_num}: critic response was invalid JSON; ask generator to simplify and fix fields."
+                )
+                continue
+
+            print(f"\n===== SCENE {scene_num} FORMAT/BIBLE REPORT =====")
+            print(json.dumps(sf, indent=2))
+
+            if not sf.get("pass"):
+                all_pass = False
+
+            issues = sf.get("issues") or []
+            rec = sf.get("recommended_fixes") or ""
+            summary = f"Scene {scene_num} issues: {issues}\nRecommended fixes: {rec}"
+            scene_critic_summaries.append(summary)
+
+        if not all_pass:
+            print(
+                "\n❌ One or more scenes failed format/bible checks. Regenerating with critic feedback…"
+            )
+            critic_feedback = "\n\n".join(scene_critic_summaries)
+            human_notes = None
+            previous_scenes = scenes_full
+            skip_expansion = False  # Need to expand again after critic feedback
+            # Don't increment retry counter - this is expected feedback loop, not an error
+            continue
+
+        # ------------------ CINEMATOGRAPHY CRITIC (WHOLE SEQUENCE) ------------------
+        print("\n🎥 Running cinematography critic on full scene list…")
+        cc_raw = cinematography_check(scenes_full)
+        try:
+            cinema_check = json.loads(cc_raw)
+        except json.JSONDecodeError as e:
+            print(
+                f"⚠️  Cinematography critic returned invalid JSON: {e}. Ignoring for this loop."
+            )
+            cinema_check = {"pass": False, "notes": [], "recommended_fixes": ""}
+
+        print("\n===== CINEMATOGRAPHY CRITIC REPORT =====")
+        print(json.dumps(cinema_check, indent=2))
+
+        # ------------------ HUMAN REVIEW & DECISION ------------------
+        print("\n===== FINAL EXPANDED SCENES (CURRENT ITERATION) =====")
+        print(json.dumps(scenes_full, indent=2))
+
+        try:
+            choice = input("\nAccept these scenes? (y/n): ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print("\n\n❌ Interrupted by user. Exiting.")
+            sys.exit(1)
+
+        if choice == "y":
+            # Save scenes
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            artifacts_dir = os.path.join(
+                os.path.dirname(script_dir), "artifacts", "3_scene_generation"
+            )
+            os.makedirs(artifacts_dir, exist_ok=True)
+            out_path = os.path.join(artifacts_dir, "scenes.json")
+
+            try:
+                with open(out_path, "w", encoding="utf-8") as f:
+                    json.dump(scenes_full, f, indent=2, ensure_ascii=False)
+                print(f"\n✅ Scenes accepted. {out_path} written.")
+                return
+            except Exception as e:
+                print(f"❌ Failed to save scenes: {e}")
+                sys.exit(1)
+
+        # Otherwise, gather human feedback and loop
+        feedback_text = read_multiline_input(
+            "\nProvide your feedback for the next iteration:\n"
+            "(You can target specific scenes by starting a line with 'N: ' where N is the scene number.\n"
+            "Example: '2: Make the lighting brighter' targets scene 2.\n"
+            "Lines without a scene number are treated as general feedback and will be applied to ALL scenes.)"
+        )
+
+        # Parse scene-specific feedback
+        parsed_feedback = (
+            parse_scene_specific_feedback(feedback_text)
+            if feedback_text and feedback_text.strip()
+            else None
+        )
+
+        if parsed_feedback and (
+            parsed_feedback.get("scene_feedback") or parsed_feedback.get("general")
+        ):
+            # Determine which scenes need modification
+            scenes_to_modify = set()
+            if parsed_feedback.get("general"):
+                # General feedback applies to all scenes
+                scenes_to_modify = {s.get("scene_number") for s in scenes}
+            if parsed_feedback.get("scene_feedback"):
+                # Add scenes with scene-specific feedback
+                scenes_to_modify.update(parsed_feedback["scene_feedback"].keys())
+
+            if scenes_to_modify:
+                print(
+                    f"\n🔄 Modifying {len(scenes_to_modify)} scene(s) based on feedback…"
+                )
+
+                # Create a mapping of scene_number -> scene for easy lookup
+                scene_map = {s.get("scene_number"): s for s in scenes}
+
+                # Modify each scene that needs modification
+                for scene_num in sorted(scenes_to_modify):
+                    if scene_num not in scene_map:
+                        print(
+                            f"⚠️  Warning: Scene {scene_num} not found in current scenes. Skipping."
+                        )
+                        continue
+
+                    # Collect all feedback for this scene
+                    feedback_for_scene = []
+                    if parsed_feedback.get("scene_feedback", {}).get(scene_num):
+                        feedback_for_scene.extend(
+                            parsed_feedback["scene_feedback"][scene_num]
+                        )
+                    if parsed_feedback.get("general"):
+                        feedback_for_scene.extend(parsed_feedback["general"])
+
+                    if not feedback_for_scene:
+                        continue
+
+                    print(f"  → Modifying scene {scene_num}...")
+                    scene = scene_map[scene_num]
+
+                    try:
+                        modified_scene_str = modify_single_scene(
+                            bible, scene, feedback_for_scene, total_duration
+                        )
+                        modified_scene = json.loads(modified_scene_str)
+
+                        # Validate it's a scene object
+                        if (
+                            not isinstance(modified_scene, dict)
+                            or "scene_number" not in modified_scene
+                        ):
+                            print(
+                                f"⚠️  Scene {scene_num} modification returned invalid format. Keeping original."
+                            )
+                            continue
+
+                        # Ensure scene_number matches
+                        if modified_scene.get("scene_number") != scene_num:
+                            modified_scene["scene_number"] = scene_num
+
+                        # Update word count
+                        desc = modified_scene.get("description", "") or ""
+                        modified_scene["description_word_count"] = len(desc.split())
+
+                        # Replace the scene in the list
+                        scene_index = next(
+                            (
+                                i
+                                for i, s in enumerate(scenes)
+                                if s.get("scene_number") == scene_num
+                            ),
+                            None,
+                        )
+                        if scene_index is not None:
+                            scenes[scene_index] = modified_scene
+                            print(f"  ✓ Scene {scene_num} modified successfully.")
+                        else:
+                            print(
+                                f"⚠️  Could not find scene {scene_num} in list. Skipping."
+                            )
+
+                    except json.JSONDecodeError as e:
+                        print(
+                            f"❌ Failed to parse modified scene {scene_num}: {e}. Keeping original."
+                        )
+                        continue
+                    except Exception as e:
+                        print(
+                            f"❌ Error modifying scene {scene_num}: {e}. Keeping original."
+                        )
+                        continue
+
+                # Recalculate total duration
+                total_duration = sum(s.get("duration", 0) for s in scenes)
+                scenes_full["total_duration"] = total_duration
+
+                # Update scenes_full with modified scenes
+                scenes_full["scenes"] = scenes
+
+                # Continue loop to show updated scenes and run critics again
+                # Skip expansion since we just modified scenes
+                human_notes = None
+                critic_feedback = None
+                previous_scenes = scenes_full
+                expansion_retries = 0
+                skip_expansion = True
+                continue
+
+        # No feedback or empty feedback - continue loop without modifications
+        human_notes = None
+        critic_feedback = None
+        previous_scenes = scenes_full
+        expansion_retries = 0
+        skip_expansion = False
+
+    print("❌ Max retries exceeded for expansion loop.")
+    sys.exit(1)
+
+
+def main():
+    """Main entry point."""
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} <bible_file.json>")
+        sys.exit(1)
+
+    bible_file = sys.argv[1]
+    bible = load_bible(bible_file)
+
+    skeleton = generate_skeleton_with_retry(bible)
+    expand_and_review_scenes(bible, skeleton)
+
+    print("\nPhase 3 complete.")
+
+
+if __name__ == "__main__":
+    main()

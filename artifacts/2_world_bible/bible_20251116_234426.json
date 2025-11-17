@@ -1,0 +1,157 @@
+{
+  "canonical_json": {
+    "characters": [
+      {
+        "id": "little_girl",
+        "description": "A young girl around 5 years old with curly brown hair and bright eyes, wearing a light pink dress and white sneakers.",
+        "emotional_arc": [
+          "happy and carefree",
+          "startled and fearful",
+          "comforted and brave"
+        ],
+        "actions": [
+          "strolling happily",
+          "stepping back in fear",
+          "hugging teddy bear tightly"
+        ]
+      },
+      {
+        "id": "teddy_bear",
+        "description": "A classic plush teddy bear, medium-sized, with soft brown fur, black button eyes, and a red ribbon around its neck.",
+        "special_properties": [
+          "comes to life",
+          "radiates warm gentle light",
+          "emits a powerful upward beam of light that disperses thunder clouds"
+        ],
+        "actions": [
+          "standing bravely between girl and dog",
+          "emitting warm light",
+          "shooting a beam of light upward"
+        ]
+      },
+      {
+        "id": "menacing_dog",
+        "description": "A large, dark-colored dog with sharp features and an aggressive stance.",
+        "emotional_arc": [
+          "menacing and threatening",
+          "startled and fearful",
+          "running away"
+        ],
+        "actions": [
+          "appearing suddenly",
+          "intimidating the girl",
+          "running away in fear"
+        ]
+      }
+    ],
+    "objects": [
+      {
+        "id": "teddy_bear_object",
+        "material": "soft plush fabric",
+        "size": "medium, about 12 inches tall",
+        "colors": [
+          "brown fur",
+          "red ribbon"
+        ],
+        "special_properties": [
+          "glows warmly",
+          "emits a powerful light beam"
+        ]
+      }
+    ],
+    "environments": [
+      {
+        "id": "park_sunny",
+        "base_location": "park",
+        "description": "A bright, sunlit park with green grass, tall trees, and a paved walking path.",
+        "time_of_day": "afternoon",
+        "weather": "clear skies, sunny",
+        "lighting": "warm natural sunlight",
+        "mood": "happy, carefree",
+        "geometry": "open grassy areas with scattered trees and a winding paved path",
+        "ambient_sounds": "birds chirping, gentle breeze"
+      },
+      {
+        "id": "park_thunderclouds_gathering",
+        "base_location": "park",
+        "description": "The same park now under dark, gathering thunderclouds with distant thunder rumbling.",
+        "time_of_day": "late afternoon",
+        "weather": "cloudy with thunderstorm approaching",
+        "lighting": "dim, shadowed by dark clouds",
+        "mood": "tense, fearful",
+        "geometry": "unchanged from sunny park, same paths and trees",
+        "ambient_sounds": "distant thunder, wind picking up"
+      },
+      {
+        "id": "park_after_light_beam",
+        "base_location": "park",
+        "description": "The park after the teddy bear’s light beam disperses the thunderclouds, returning to calm with soft light filtering through clearing skies.",
+        "time_of_day": "late afternoon",
+        "weather": "clearing skies after thunderstorm",
+        "lighting": "soft, warm light with patches of sunlight",
+        "mood": "relieved, peaceful",
+        "geometry": "same as previous park states",
+        "ambient_sounds": "birds returning, gentle breeze"
+      },
+      {
+        "id": "cozy_room_evening",
+        "base_location": "cozy room",
+        "description": "A warm, cozy bedroom with soft lighting, a small bed with colorful blankets, and toys scattered around.",
+        "time_of_day": "evening",
+        "weather": "indoors",
+        "lighting": "soft warm indoor lighting",
+        "mood": "comforting, safe",
+        "geometry": "small room with bed, window, and toys",
+        "ambient_sounds": "soft indoor ambiance, faint outside night sounds"
+      }
+    ],
+    "style": {
+      "visual_style": "warm, soft, and inviting with a slight magical realism touch during the teddy bear’s light beam scene",
+      "color_palette": "pastel colors for the girl and room, natural greens and browns for the park, dark grays and blues for thunderclouds, warm golden light for teddy bear glow",
+      "animation_style": "smooth, fluid animation with expressive character movements and subtle lighting effects"
+    },
+    "continuity": {
+      "emotional_arc": [
+        "girl happy and carefree in sunny park",
+        "girl startled and fearful as dog appears under thunderclouds",
+        "teddy bear comes to life and emits warm light",
+        "light beam shoots upward dispersing clouds",
+        "dog runs away scared",
+        "girl comforted and hugs teddy bear",
+        "scene transitions to cozy room where girl feels safe"
+      ],
+      "lighting_progression": [
+        "warm sunlight",
+        "dim and shadowed under thunderclouds",
+        "warm glowing light and bright beam",
+        "soft warm indoor lighting"
+      ],
+      "character_consistency": [
+        "girl’s clothing and appearance remain consistent",
+        "teddy bear’s size and colors remain consistent",
+        "dog’s menacing appearance consistent until it runs away"
+      ],
+      "environmental_progression": [
+        "park_sunny → park_thunderclouds_gathering → park_after_light_beam → cozy_room_evening"
+      ]
+    },
+    "imagination_rules": {
+      "lighting_effects": "The teddy bear’s glow should be warm and gentle initially, then intensify into a bright, focused beam shooting upward through the clouds with visible dispersing effect on the thunderclouds.",
+      "character_animation": "The teddy bear’s movements should be brave and protective, with subtle magical realism to emphasize its life and power.",
+      "dog_reaction": "The dog’s fear and retreat should be clearly visible and dramatic but not frightening for children.",
+      "environment_transitions": "Transitions between park states should be smooth with consistent geometry and gradual lighting changes.",
+      "room_scene": "The final room scene should feel cozy and safe, with warm colors and soft lighting emphasizing comfort."
+    }
+  },
+  "readable_text": "The story begins with a little girl happily strolling through a sunlit park, clutching her beloved teddy bear. Suddenly, a menacing dog appears, and dark thunderclouds gather overhead, casting a shadow of fear. Just as the threat feels overwhelming, the teddy bear magically comes to life, standing bravely between the girl and the dog. It radiates a warm, gentle glow that intensifies into a powerful beam shooting upward, dispersing the dark clouds above. Startled by the bear’s courage and the clearing skies, the dog runs away in fear. Relieved, the girl stands back up and hugs her teddy bear tightly. The scene then transitions to the cozy safety of her bedroom, where she holds her steadfast companion close, feeling comforted and protected.",
+  "reference_entities": [
+    "little_girl",
+    "teddy_bear",
+    "menacing_dog",
+    "teddy_bear_object",
+    "park_sunny",
+    "park_thunderclouds_gathering",
+    "park_after_light_beam",
+    "cozy_room_evening"
+  ]
+}
