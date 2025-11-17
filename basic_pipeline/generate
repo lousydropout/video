@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+import sys, subprocess
+
+prompt = sys.argv[1]
+
+subprocess.run(["python", "01_scenes.py", prompt])
+subprocess.run(["python", "02_keyframes.py"])
+subprocess.run(["python", "03_animate.py"])
+subprocess.run(["python", "04_stitch.py"])
+
+print("\nDone!\nYour video is in final/output.mp4\n")

@@ -1,0 +1,156 @@
+{
+  "canonical_json": {
+    "characters": [
+      {
+        "id": "little_girl",
+        "description": "A Hispanic little girl, approximately 5 years old, with warm olive skin, dark brown eyes, and long, wavy black hair tied loosely with a small pink ribbon. She wears a light pastel pink cotton dress with short puffed sleeves, a fitted bodice, and a gently flared skirt reaching just below her knees. She is barefoot, emphasizing her innocence and connection to nature. Her expression transitions from cautious fear to relief and warmth throughout the scene.",
+        "clothing": {
+          "type": "dress",
+          "color_palette": [
+            "pastel pink",
+            "soft white accents"
+          ],
+          "material": "light cotton",
+          "details": [
+            "short puffed sleeves",
+            "fitted bodice",
+            "flared skirt",
+            "small pink ribbon in hair"
+          ]
+        },
+        "pose_and_action": [
+          {
+            "scene": "park",
+            "pose": "walking cautiously, clutching teddy bear tightly with both hands close to chest",
+            "expression": "worried, eyes wide, lips slightly parted"
+          },
+          {
+            "scene": "park_imagination",
+            "pose": "standing still, face softening, whispering gently to teddy bear, hugging it close",
+            "expression": "relieved, tender smile"
+          },
+          {
+            "scene": "bedroom",
+            "pose": "sitting peacefully cross-legged on floor, holding teddy bear in lap",
+            "expression": "calm, content"
+          }
+        ]
+      },
+      {
+        "id": "teddy_bear",
+        "description": "A classic teddy bear about 18 inches tall, made of soft, plush caramel brown fur with a slightly worn but well-loved appearance. It has round black button eyes, a stitched dark brown nose, and a small red bow tie around its neck. When brought to life by the girl's imagination, it stands upright on two legs, grows to about 4 feet tall, with a gentle, brave demeanor. Its eyes glow softly with a warm amber light, and it radiates a subtle shimmering aura of protection.",
+        "material": "plush fabric with visible stitching",
+        "colors": [
+          "caramel brown",
+          "dark brown nose",
+          "black button eyes",
+          "red bow tie"
+        ],
+        "animation_states": [
+          {
+            "state": "inanimate",
+            "pose": "held tightly in girl's arms"
+          },
+          {
+            "state": "animated_imagination",
+            "pose": "standing tall on hind legs, front paws slightly raised as if shielding",
+            "effects": [
+              "soft shimmer glow",
+              "gentle whimsical sound effect",
+              "warm amber eye glow"
+            ]
+          },
+          {
+            "state": "bedroom_rest",
+            "pose": "nestled peacefully in girl's lap",
+            "expression": "neutral, comforting presence"
+          }
+        ]
+      },
+      {
+        "id": "dog",
+        "description": "A fierce-looking medium-sized dog, resembling a German Shepherd mix, with a muscular build, short tan and black fur, erect ears, and sharp, alert eyes. It growls menacingly, showing teeth, body low and tense as it approaches the girl. The dog’s fur is slightly ruffled, emphasizing aggression but not overtly violent.",
+        "pose_and_action": [
+          {
+            "scene": "park",
+            "pose": "low crouch, growling with bared teeth, eyes locked on girl and teddy bear"
+          },
+          {
+            "scene": "park_after_imagination",
+            "pose": "backs away slowly, tail lowered, ears slightly back, showing submission"
+          }
+        ]
+      }
+    ],
+    "objects": [
+      {
+        "id": "teddy_bear",
+        "linked_character": "teddy_bear"
+      }
+    ],
+    "environments": [
+      {
+        "id": "sunlit_park",
+        "description": "A bright, sunlit park in early afternoon with lush green grass, scattered wildflowers in yellows and purples, and tall leafy trees casting dappled shadows. The sky is clear blue with soft, warm sunlight filtering through the leaves, creating a peaceful yet dynamic atmosphere. The ground is slightly uneven with patches of dirt and small stones. The park is quiet except for distant birdsong and the tense moment between the girl and the dog.",
+        "lighting": {
+          "type": "natural sunlight",
+          "direction": "top-left",
+          "intensity": "bright but soft",
+          "shadows": "soft dappled shadows from trees"
+        },
+        "color_palette": [
+          "vibrant greens",
+          "soft yellows",
+          "sky blue",
+          "earthy browns"
+        ]
+      },
+      {
+        "id": "cozy_bedroom",
+        "description": "A small, cozy bedroom with warm ambient lighting from a bedside lamp casting a soft golden glow. The walls are painted a gentle cream color with framed children's drawings and a small bookshelf filled with storybooks. The floor is covered with a plush pastel pink rug matching the girl's dress. A wooden bed with a colorful quilt is visible in the background. The atmosphere is calm, safe, and nurturing.",
+        "lighting": {
+          "type": "warm ambient",
+          "color_temperature": "warm (2700K)",
+          "intensity": "soft, low"
+        },
+        "color_palette": [
+          "warm cream",
+          "pastel pink",
+          "soft wood tones",
+          "colorful accents from books and drawings"
+        ]
+      }
+    ],
+    "style": {
+      "visual_style": "realistic with gentle, storybook warmth",
+      "color_tone": "warm and inviting",
+      "animation_style": "smooth transitions with subtle magical effects for imagination sequences",
+      "sound_design": {
+        "park": [
+          "natural ambient sounds: birdsong, rustling leaves"
+        ],
+        "dog_growl": "low, menacing but not overly harsh",
+        "imagination_activation": "soft shimmer sound with whimsical bells",
+        "bedroom": "quiet, peaceful background hum",
+        "voiceover": "gentle female voice, warm and soothing"
+      }
+    },
+    "continuity": {
+      "character_appearance": "consistent skin tone, hair style, and clothing throughout scenes",
+      "teddy_bear_appearance": "consistent plush texture and colors, glowing only during imagination sequence",
+      "lighting_consistency": "natural sunlight in park, warm ambient in bedroom",
+      "emotional_progression": "fear to relief to calmness reflected in facial expressions and body language",
+      "scene_transitions": "smooth dissolve with gentle shimmer effect from park to bedroom"
+    },
+    "imagination_rules": {
+      "activation_trigger": "girl's emotional state shifts from fear to courage",
+      "visual_effects": [
+        "soft shimmer glow around teddy bear",
+        "gentle whimsical sound"
+      ],
+      "teddy_bear_animation": "scales up to 4 feet tall, stands upright, eyes glow warmly",
+      "dog_reaction": "backs away gradually as teddy bear stands protectively"
+    }
+  },
+  "readable_text": "In a bright, sunlit park filled with lush green grass and dappled sunlight filtering through tall trees, a Hispanic little girl of about five years walks cautiously. She wears a pastel pink cotton dress with short puffed sleeves and a small pink ribbon in her long, wavy black hair. Barefoot and clutching her well-loved caramel brown teddy bear tightly, her dark brown eyes are wide with worry as a fierce German Shepherd mix growls nearby, its body low and tense.\n\nSuddenly, with a soft shimmer and a gentle, whimsical bell-like sound, the girl's imagination brings her teddy bear to life. The plush toy grows to stand four feet tall, upright on its hind legs, its warm amber eyes glowing softly as it radiates a protective aura. The brave teddy bear steps forward, shielding the girl tenderly. The growling dog, sensing the bear's gentle strength, slowly backs away, tail lowered and ears back.\n\nThe girl's fear melts into relief; her face softens into a tender smile as she whispers to her brave companion and hugs it close. The scene transitions smoothly with a gentle shimmer effect to her cozy bedroom, warmly lit by a bedside lamp casting a soft golden glow. Sitting peacefully cross-legged on a pastel pink rug, the girl holds the teddy bear in her lap, surrounded by framed children's drawings and storybooks. The bear remains a quiet symbol of courage, protection, and love.\n\nAs the camera lingers on the bear's comforting presence, a gentle female voice reminds us: \"More than a toy, this teddy bear is a steadfast friend—always there to turn fear into strength and imagination into comfort.\""
+}

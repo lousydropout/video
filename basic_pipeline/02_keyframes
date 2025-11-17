@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+import json, os, requests, replicate
+from dotenv import load_dotenv
+
+load_dotenv()
+client = replicate.Client(api_token=os.getenv("REPLICATE_API_TOKEN"))
+
+os.makedirs("keyframes", exist_ok=True)
+
+with open("scenes.json") as f:
+    scenes_json = json.load(f)
+
+scenes = scenes_json["scenes"]
+characters = scenes_json.get("characters", [])
+product = scenes_json.get("product", {})
+global_style = scenes_json.get("global_style", {})
+
+
+# ------------------------------------------------------
+# CHARACTER BIBLE
+# ------------------------------------------------------
+if characters:
+    c = characters[0]
+    CHARACTER_BIBLE = f"""
+STRICT CHARACTER CONSISTENCY:
+- Gender: {c.get("gender")}
+- Age: {c.get("age")}
+- Appearance: {c.get("appearance")}
+- Wardrobe: {c.get("wardrobe")}
+- The character must remain visually identical across all scenes.
+"""
+else:
+    CHARACTER_BIBLE = ""
+
+
+# ------------------------------------------------------
+# PRODUCT BIBLE
+# ------------------------------------------------------
+PRODUCT_BIBLE = f"""
+STRICT PRODUCT CONSISTENCY:
+- Product: {product.get("name")}
+- Category: {product.get("category")}
+- Appearance: {product.get("appearance")}
+- Materials: {product.get("materials")}
+- Colors: {product.get("colors")}
+- Geometry notes: {product.get("geometry_notes")}
+- Product must remain visually identical across all scenes.
+""" if product else ""
+
+
+# ------------------------------------------------------
+# GLOBAL STYLE LOCK
+# ------------------------------------------------------
+STYLE_LOCK = f"""
+GLOBAL STYLE LOCK:
+- Color grade: {global_style.get("color_grade")}
+- Contrast: {global_style.get("contrast")}
+- Saturation: {global_style.get("saturation")}
+- Lighting palette: {global_style.get("lighting_palette")}
+- Cinematic, photorealistic style only.
+- No cartoon, anime, illustration, or 2D styles.
+"""
+
+
+NEGATIVE = """
+cartoon, illustration, anime,
+melted objects, distorted faces, deformed anatomy,
+extra fingers, warped geometry, blurry faces, uncanny valley,
+text artifacts, low realism, grain, noise
+"""
+
+
+# ------------------------------------------------------
+# IMAGE CHAINING
+# ------------------------------------------------------
+previous_image_url = None
+
+for scene in scenes:
+    scene_num = scene["scene_number"]
+
+    # Build prompt
+    prompt = f"""
+{CHARACTER_BIBLE}
+{PRODUCT_BIBLE}
+{STYLE_LOCK}
+
+SCENE:
+- Environment: {scene.get("environment")}
+- Description: {scene.get("description")}
+- Camera framing: {scene['camera'].get('framing')}
+- Camera movement: {scene['camera'].get('movement')}
+- Lens: {scene['camera'].get('lens')}
+- Focus: {scene['camera'].get('focus')}
+- Lighting: {scene.get("lighting")}
+- Style: {scene.get("style")}
+
+Ensure full cinematic realism and consistency with previous scenes.
+    """.strip()
+
+    # Decide whether to include reference images
+    reference_images = []
+    reference_tags = []
+
+    # Scene 4 is watch-only → do NOT reference a face
+    if scene_num != 4 and previous_image_url:
+        reference_images = [previous_image_url]
+        reference_tags = ["main_character"]
+
+    print(f"\nGenerating scene {scene_num}...")
+
+    output = client.run(
+        "runwayml/gen4-image",
+        input={
+            "prompt": prompt,
+            "negative_prompt": NEGATIVE,
+            "resolution": "720p",
+            "aspect_ratio": "16:9",
+            "reference_images": reference_images,
+            "reference_tags": reference_tags,
+        },
+    )
+
+    # Handle output - it's a FileOutput object that yields byte chunks
+    img_data = None
+    out_url = None
+    
+    if hasattr(output, '__iter__') and not isinstance(output, (str, bytes)):
+        # It's an iterable (FileOutput) that yields byte chunks
+        chunks = []
+        for chunk in output:
+            if isinstance(chunk, bytes):
+                chunks.append(chunk)
+            elif isinstance(chunk, str):
+                # If it's a URL, download it
+                out_url = chunk
+                img_data = requests.get(chunk).content
+                break
+            else:
+                chunks.append(bytes(chunk))
+        
+        if img_data is None:
+            # Concatenate all byte chunks
+            img_data = b''.join(chunks)
+    elif isinstance(output, str):
+        # It's a URL string
+        out_url = output
+        img_data = requests.get(output).content
+    elif isinstance(output, bytes):
+        # It's already bytes
+        img_data = output
+    else:
+        # Try to convert to bytes
+        img_data = bytes(output)
+
+    out_path = f"keyframes/scene_{scene_num}.webp"
+    with open(out_path, "wb") as f:
+        f.write(img_data)
+
+    print(f"Saved → {out_path}")
+
+    # Update chaining reference (skip scene 4 because no face)
+    # If we have a URL, use it; otherwise we'll need to upload the file
+    if scene_num != 4:
+        if out_url:
+            previous_image_url = out_url
+        else:
+            # Upload the file to get a URL for next scene
+            uploaded_file = client.files.create(file=out_path)
+            previous_image_url = uploaded_file.urls.get("get")

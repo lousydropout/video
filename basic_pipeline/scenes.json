@@ -1,0 +1,101 @@
+{
+  "total_duration": 30,
+  "global_style": {
+    "color_grade": "warm cinematic",
+    "contrast": "medium",
+    "saturation": "subtle",
+    "lighting_palette": "soft key + fill + warm practicals",
+    "consistency_notes": "Maintains a luxurious and polished aesthetic throughout"
+  },
+  "characters": [
+    {
+      "id": "main",
+      "gender": "male",
+      "age": "35",
+      "appearance": "chiseled jawline, light stubble, warm brown eyes",
+      "wardrobe": "tailored navy suit, white dress shirt, silk tie",
+      "consistency_notes": "Character looks identical in all scenes"
+    }
+  ],
+  "product": {
+    "name": "Luxury Timepiece",
+    "category": "wristwatch",
+    "appearance": "sleek, modern design with a stainless steel case",
+    "materials": "high-grade stainless steel, sapphire crystal, leather strap",
+    "colors": "deep blue face, silver accents",
+    "geometry_notes": "round case, minimalist dial with subtle details",
+    "consistency_notes": "Product maintains identical appearance in all scenes"
+  },
+  "scenes": [
+    {
+      "scene_number": 1,
+      "duration": 5,
+      "environment": "modern office",
+      "description": "The main character adjusts his watch while looking at documents on his desk, showcasing the watch face.",
+      "camera": {
+        "framing": "close-up",
+        "movement": "static",
+        "lens": "standard",
+        "focus": "on watch"
+      },
+      "lighting": "soft, natural sunlight coming from a nearby window",
+      "style": "elegant and clean"
+    },
+    {
+      "scene_number": 2,
+      "duration": 5,
+      "environment": "rooftop lounge",
+      "description": "The character raises his wrist to check the time while gazing at the skyline during sunset.",
+      "camera": {
+        "framing": "medium shot",
+        "movement": "gentle dolly in",
+        "lens": "standard",
+        "focus": "on character's wrist"
+      },
+      "lighting": "warm, golden hour glow",
+      "style": "sophisticated and serene"
+    },
+    {
+      "scene_number": 3,
+      "duration": 5,
+      "environment": "hallway",
+      "description": "The character walks confidently down a well-lit hallway, adjusting his cufflink and revealing the watch.",
+      "camera": {
+        "framing": "medium shot",
+        "movement": "static",
+        "lens": "standard",
+        "focus": "on character"
+      },
+      "lighting": "soft, even lighting with slight warm tones",
+      "style": "stylish and refined"
+    },
+    {
+      "scene_number": 4,
+      "duration": 7,
+      "environment": "luxury product studio",
+      "description": "A close-up shot of the luxury watch on a rotating pedestal, highlighting its features and craftsmanship.",
+      "camera": {
+        "framing": "close-up",
+        "movement": "gentle rotation",
+        "lens": "macro",
+        "focus": "on watch details"
+      },
+      "lighting": "soft, focused lighting to accentuate the watch's elegance",
+      "style": "detailed and luxurious"
+    },
+    {
+      "scene_number": 5,
+      "duration": 7,
+      "environment": "modern office",
+      "description": "The character takes a final look at the watch before exiting the office, exuding confidence.",
+      "camera": {
+        "framing": "medium shot",
+        "movement": "gentle dolly out",
+        "lens": "standard",
+        "focus": "on character's face and watch"
+      },
+      "lighting": "soft, natural lighting to create a warm atmosphere",
+      "style": "confident and inspiring"
+    }
+  ]
+}
