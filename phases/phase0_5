@@ -1,102 +1,24 @@
 #!/usr/bin/env python3
 import json
 import sys
+import os
 from datetime import datetime
 from openai import OpenAI
 
 client = OpenAI()
 
 # ----------------------------
-# SYSTEM PROMPTS
-# ----------------------------
-
-VIDEO_BIBLE_ENGINE = """
-You are the VIDEO BIBLE ENGINE.
-
-Your job is to turn ANY user prompt into a complete, production-ready world bible
-with explicit details for generative image and video models.
-
-You MUST:
-- infer missing details
-- resolve ambiguities
-- create fully explicit character, object, and environment details
-- define geometry, materials, lighting, palettes, continuity rules
-- never ask user questions
-- never leave attributes vague
-
-You output:
-{
-  "canonical_json": { ... },
-  "readable_text": "..."
-}
-
-Canonical JSON must include:
-- characters
-- objects
-- environments
-- style
-- continuity
-- imagination_rules (if relevant)
-"""
-
-MISSING_ATTRIBUTE_CRITIC = """
-You are the ATTRIBUTE COMPLETENESS CRITIC.
-
-Your job is to review the canonical JSON bible and evaluate whether it contains
-ALL essential attributes needed for consistent generative modeling.
-
-ONLY evaluate attribute completeness:
-- character physical traits
-- clothing details
-- object geometry + size + materials
-- environment layout + lighting
-- time-of-day
-- style parameters
-- continuity rules
-- camera-aware details
-
-If something is missing, output:
-
-{
-  "needs_revision": true,
-  "missing_attributes": [ ... ]
-}
-
-If everything required is present, output:
-
-{
-  "needs_revision": false
-}
-"""
-
-CINEMATOGRAPHY_CRITIC = """
-You are the CINEMATOGRAPHY CRITIC.
-
-Your job:
-- evaluate the bible for cinematic realism
-- look for lighting inconsistencies
-- missing spatial anchors
-- broken continuity
-- unclear camera geometry
-- implausible staging
-- inconsistent scale
-- vague lighting direction
-- unclear emotional arc
-
-You NEVER override story choices.
-You ONLY critique cinematography-level clarity.
-
-OUTPUT:
-
-{
-  "notes_for_human": [...],
-  "overall": "pass" | "revise"
-}
-"""
-
-# ----------------------------
 # HELPERS
 # ----------------------------
+
+def load_prompt(filename):
+    """Load a prompt file from prompts/phase0_5/ directory."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    prompts_dir = os.path.join(os.path.dirname(script_dir), "prompts", "phase0_5")
+    prompt_path = os.path.join(prompts_dir, filename)
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
 
 def llm(messages, model="gpt-4.1-mini"):
     return client.chat.completions.create(
@@ -110,6 +32,7 @@ def llm(messages, model="gpt-4.1-mini"):
 # ----------------------------
 
 def generate_bible(user_prompt):
+    VIDEO_BIBLE_ENGINE = load_prompt("video_bible_engine.txt")
     response = llm([
         {"role": "system", "content": VIDEO_BIBLE_ENGINE},
         {"role": "user", "content": user_prompt}
@@ -117,6 +40,7 @@ def generate_bible(user_prompt):
     return json.loads(response)
 
 def missing_attribute_pass(bible_json):
+    MISSING_ATTRIBUTE_CRITIC = load_prompt("missing_attribute_critic.txt")
     response = llm([
         {"role": "system", "content": MISSING_ATTRIBUTE_CRITIC},
         {"role": "user", "content": json.dumps(bible_json["canonical_json"])}
@@ -124,6 +48,7 @@ def missing_attribute_pass(bible_json):
     return json.loads(response)
 
 def cinematography_pass(bible_json):
+    CINEMATOGRAPHY_CRITIC = load_prompt("cinematography_critic.txt")
     response = llm([
         {"role": "system", "content": CINEMATOGRAPHY_CRITIC},
         {"role": "user", "content": json.dumps(bible_json["canonical_json"])}
@@ -234,8 +159,9 @@ def run_bible_orchestrator():
     
     # Save to disk
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = f"bible_{timestamp}.json"
+    output_file = f"artifacts/phase0_5/bible_{timestamp}.json"
     try:
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(bible, f, indent=2, ensure_ascii=False)
         print(f"\n✓ Final bible saved to '{output_file}'")
@@ -245,3 +171,4 @@ def run_bible_orchestrator():
 
 if __name__ == "__main__":
     run_bible_orchestrator()
+

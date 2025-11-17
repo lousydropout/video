@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import sys
+import os
 from openai import OpenAI
 
 client = OpenAI()
@@ -25,6 +26,18 @@ def read_multiline_input(prompt=""):
 
 
 # ============================================================
+#          Helper: Load prompts
+# ============================================================
+def load_prompt(filename):
+    """Load a prompt file from prompts/phase1/ directory."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    prompts_dir = os.path.join(os.path.dirname(script_dir), "prompts", "phase1")
+    prompt_path = os.path.join(prompts_dir, filename)
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+# ============================================================
 #                Load Bible JSON
 # ============================================================
 if len(sys.argv) < 2:
@@ -44,196 +57,6 @@ except Exception as e:
 
 
 # ============================================================
-#                     Agent System Prompts
-# ============================================================
-
-# ------------------------------------------------------------
-# 1) SKELETON SCENE GENERATOR
-# ------------------------------------------------------------
-SCENE_SKELETON_SYS = """
-You are the SCENE SKELETON GENERATOR.
-
-Your job is to create a *minimal scene breakdown* for a 30-second video
-based strictly on the CANONICAL BIBLE the user provides.
-
-You are NOT responsible for camera, lighting, or style details.
-You only define:
-- scene_number
-- rough_duration (seconds)
-- description: 40–90 words, purely visual and diegetic (what we see/hear).
-
-Rules:
-- 4 to 6 scenes.
-- Sum of rough_duration MUST be exactly 30.
-- Descriptions must be concrete and visually grounded, no abstract phrases
-  like "the atmosphere of fear spreads" — instead, describe faces, bodies,
-  actions, lighting, environment, sound, etc.
-- Obey all character, object, environment, and continuity rules from the bible.
-
-Return ONLY JSON, no prose, no backticks. Structure:
-
-{
-  "total_duration": 30,
-  "scenes": [
-    {
-      "scene_number": 1,
-      "rough_duration": 6,
-      "description": "..."
-    }
-  ]
-}
-"""
-
-# ------------------------------------------------------------
-# 2) SCENE EXPANDER (adds cinematography, lighting, etc.)
-# ------------------------------------------------------------
-SCENE_EXPANDER_SYS = """
-You are the SCENE EXPANDER AGENT.
-
-You receive:
-- The CANONICAL BIBLE
-- A SKELETON SCENE LIST (scene_number, rough_duration, description)
-- Optionally the CURRENT full scenes from a previous iteration
-- Optional feedback from critics and the human
-
-Your tasks:
-1. For each skeleton scene, produce a *fully specified* scene entry with:
-   - scene_number
-   - duration (seconds; final durations must sum exactly to 30)
-   - environment (must match locations from the bible)
-   - description (visually explicit, model-ready)
-   - camera: { framing, movement, lens, focus }
-   - lighting
-   - style
-
-2. Obey the bible exactly:
-   - correct character appearance, age, ethnicity, hair, wardrobe
-   - teddy bear’s normal + magical forms
-   - dog’s breed, coloring, posture
-   - environments, time-of-day, furniture, props
-   - lighting transitions and continuity
-   - continuity rules for emotional arc and imagination sequence
-
-3. Incorporate critic feedback and human feedback:
-   - Fix any issues explicitly mentioned.
-   - Do not regress previously correct details.
-
-IMPORTANT:
-- Descriptions must remain concrete and visual. No vague abstractions.
-- Keep description lengths reasonable (not micro, not a screenplay page).
-- Return ONLY JSON, no commentary or backticks.
-
-Output structure:
-
-{
-  "total_duration": 30,
-  "scenes": [
-    {
-      "scene_number": 1,
-      "duration": 7,
-      "environment": "...",
-      "description": "...",
-      "description_word_count": <int>,
-      "camera": {
-        "framing": "...",
-        "movement": "...",
-        "lens": "...",
-        "focus": "..."
-      },
-      "lighting": "...",
-      "style": "..."
-    }
-  ]
-}
-"""
-
-# ------------------------------------------------------------
-# 3) SCENE FORMAT + BIBLE CONSISTENCY CRITIC (per scene)
-# ------------------------------------------------------------
-SCENE_FORMAT_CRITIC_SYS = """
-You are the SCENE FORMAT + BIBLE CONSISTENCY CRITIC.
-
-You review ONE scene at a time, plus the bible context.
-You are given:
-- bible: CANONICAL BIBLE
-- scene: a fully expanded scene
-- total_duration: sum of all scene durations (for context, not strict check)
-
-Your job:
-- Verify this scene is *model-ready* and *bible-accurate*.
-
-You MUST check:
-
-1. Required fields:
-   - scene_number is present
-   - duration is present and > 0
-   - environment is present and matches a bible environment
-   - description is non-empty
-   - camera has: framing, movement, lens, focus
-   - lighting is described
-   - style is described
-
-2. Bible continuity:
-   - characters' appearance, clothing, ethnicity, age are correct when present
-   - teddy bear matches bible (normal vs imagination form)
-   - dog matches bible (breed / mix, colors, posture)
-   - environments obey time-of-day and decor from bible
-   - lighting and style match bible rules
-   - imagination rules are respected (when bear is alive vs toy)
-
-3. Visual specificity:
-   - description talks about concrete visuals: faces, bodies, poses,
-     props, environment, light, sound.
-   - no vague abstractions like "a sense of dread washes over everything"
-     without visual anchors.
-
-4. Word count:
-   - You are given description_word_count if present. Use that as the word count.
-   - You MAY mention if it seems excessively long, but you should NOT fail solely
-     because of length unless it's clearly unusable (e.g., several hundred words).
-
-Return ONLY:
-
-{
-  "pass": true/false,
-  "issues": ["..."],
-  "recommended_fixes": "..."
-}
-
-If pass=false, "recommended_fixes" must contain very explicit instructions,
-including which scene_number and which fields need changes.
-"""
-
-# ------------------------------------------------------------
-# 4) CINEMATOGRAPHY CRITIC (whole sequence)
-# ------------------------------------------------------------
-CINEMATOGRAPHY_CRITIC_SYS = """
-You are the CINEMATOGRAPHY CRITIC.
-
-You get the FULL SCENE LIST (not just one scene).
-
-Judge ONLY:
-- camera clarity
-- spatial continuity
-- lighting logic
-- emotional beats
-- transitions
-- shot composition
-- classical visual grammar
-
-You do NOT check bible or lore accuracy.
-
-Return ONLY:
-
-{
-  "pass": true/false,
-  "notes": ["..."],
-  "recommended_fixes": "..."
-}
-"""
-
-
-# ============================================================
 #                     Utility: Call OpenAI
 # ============================================================
 def call_openai(messages):
@@ -250,6 +73,7 @@ def call_openai(messages):
 # ============================================================
 def generate_skeleton_scenes(bible):
     """Generate initial skeleton scenes (descriptions + rough_duration)."""
+    SCENE_SKELETON_SYS = load_prompt("scene_skeleton_sys.txt")
     messages = [
         {"role": "system", "content": SCENE_SKELETON_SYS},
         {"role": "user", "content": json.dumps(bible)},
@@ -260,6 +84,7 @@ def generate_skeleton_scenes(bible):
 
 def generate_expanded_scenes(bible, skeleton, human_feedback=None, critic_feedback=None, previous_scenes=None):
     """Expand skeleton into fully specified scenes."""
+    SCENE_EXPANDER_SYS = load_prompt("scene_expander_sys.txt")
     messages = [
         {"role": "system", "content": SCENE_EXPANDER_SYS},
         {
@@ -293,6 +118,7 @@ def generate_expanded_scenes(bible, skeleton, human_feedback=None, critic_feedba
 
 def scene_format_check(bible, scene, total_duration):
     """Per-scene format + bible consistency critic."""
+    SCENE_FORMAT_CRITIC_SYS = load_prompt("scene_format_critic_sys.txt")
     messages = [
         {"role": "system", "content": SCENE_FORMAT_CRITIC_SYS},
         {
@@ -312,6 +138,7 @@ def scene_format_check(bible, scene, total_duration):
 
 def cinematography_check(scenes_full):
     """Whole-sequence cinematography critic."""
+    CINEMATOGRAPHY_CRITIC_SYS = load_prompt("cinematography_critic_sys.txt")
     messages = [
         {"role": "system", "content": CINEMATOGRAPHY_CRITIC_SYS},
         {"role": "user", "content": json.dumps(scenes_full)},
@@ -457,9 +284,10 @@ while True:
     choice = input("\nAccept these scenes? (y/n): ").strip().lower()
 
     if choice == "y":
-        with open("scenes.json", "w", encoding="utf-8") as f:
+        os.makedirs("artifacts/phase1", exist_ok=True)
+        with open("artifacts/phase1/scenes.json", "w", encoding="utf-8") as f:
             json.dump(scenes_full, f, indent=2, ensure_ascii=False)
-        print("\n✅ Scenes accepted. scenes.json written.")
+        print("\n✅ Scenes accepted. artifacts/phase1/scenes.json written.")
         break
 
     # Otherwise, gather human feedback and loop
@@ -478,3 +306,4 @@ while True:
     previous_scenes = scenes_full
 
 print("\nPhase 1 complete.")
+

@@ -10,6 +10,15 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # UTILITIES
 # ============================================================
 
+def load_prompt(filename):
+    """Load a prompt file from prompts/phase0/ directory."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    prompts_dir = os.path.join(os.path.dirname(script_dir), "prompts", "phase0")
+    prompt_path = os.path.join(prompts_dir, filename)
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
 def multiline_input(prompt="Enter text. Type END alone on a line to finish:"):
     print(prompt)
     lines = []
@@ -58,19 +67,7 @@ def llm(system, user, *, json_output=False):
 # INITIAL SCRIPT GENERATION
 # -------------------------
 def generate_initial_script(ad_concept):
-    system_prompt = """
-You are a commercial scriptwriter.
-
-Produce a polished **prose paragraph**, not a screenplay,
-for a 30-second advertisement.
-
-Rules:
-- NO scene numbers, NO shot lists.
-- Focus on story, emotion, theme, pacing.
-- Product must be integrated naturally.
-- No technical camera language.
-"""
-
+    system_prompt = load_prompt("generate_initial_script.txt")
     return llm(system_prompt, ad_concept)
 
 
@@ -79,25 +76,7 @@ Rules:
 # -------------------------
 def critique_script(script, human_feedback=None):
     human_feedback = human_feedback or "None"
-
-    system_prompt = """
-You are a collaborative commercial director giving helpful critique.
-
-CRITICAL RULE:
-    Human feedback OVERRIDES all prior critique and all preferences.
-    You MUST NOT re-raise any issue the human has rejected.
-    You MUST interpret human rules as canon.
-
-Your critique must focus ONLY on:
-- narrative clarity
-- emotional arc
-- pacing (30 seconds)
-- product integration
-- character consistency
-- thematic clarity
-
-And you must *not* contradict any human input.
-"""
+    system_prompt = load_prompt("critique_script.txt")
 
     user_prompt = f"""
 SCRIPT:
@@ -120,18 +99,7 @@ Provide:
 # -------------------------
 def revise_script(script, critique, human_feedback=None):
     human_feedback = human_feedback or "None"
-
-    system_prompt = """
-You revise advertisement scripts while strictly obeying HUMAN FEEDBACK.
-
-Rules:
-- Human feedback is absolute law.
-- If critique contradicts human feedback, ignore that part.
-- Result must be a single, coherent prose paragraph.
-- Length appropriate for a 30-second ad.
-- Preserve emotional arc and clarity.
-- Keep characters and product consistent.
-"""
+    system_prompt = load_prompt("revise_script.txt")
 
     user_prompt = f"""
 ORIGINAL SCRIPT:
@@ -153,24 +121,7 @@ Revise accordingly.
 # READINESS AGENT
 # -------------------------
 def check_readiness(script):
-    system_prompt = """
-Evaluate if the 30-second ad script is production-ready.
-
-READY means:
-- emotionally coherent
-- narratively clear
-- well-paced
-- product feels integrated naturally
-- transitions make sense
-- no vagueness or filler
-- consistent tone
-
-Return JSON:
-{
-  "ready": true/false,
-  "reason": "short explanation"
-}
-"""
+    system_prompt = load_prompt("check_readiness.txt")
     result = llm(system_prompt, script, json_output=True)
     return result["ready"], result["reason"]
 
@@ -209,8 +160,8 @@ def main():
         print(critique)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_json(f"00_script/critique_{timestamp}.json", {"critique": critique})
-        save_json(f"00_script/script_{timestamp}.json", {"script": script})
+        save_json(f"artifacts/phase0/critique_{timestamp}.json", {"critique": critique})
+        save_json(f"artifacts/phase0/script_{timestamp}.json", {"script": script})
 
         print("\nProvide human feedback for next revision.")
         print("Type your notes. Finish with END. Press ENTER then END for none.\n")
@@ -235,8 +186,8 @@ def main():
         if ready:
             confirm = input("\nLLM says it's ready. Are YOU satisfied? (y/n) ").lower()
             if confirm.startswith("y"):
-                os.makedirs("00_script", exist_ok=True)
-                with open("00_script/final_script.txt", "w") as f:
+                os.makedirs("artifacts/phase0", exist_ok=True)
+                with open("artifacts/phase0/final_script.txt", "w") as f:
                     f.write(script)
                 print("\nFinal script saved.")
                 break
@@ -249,3 +200,4 @@ def main():
 # ============================================================
 if __name__ == "__main__":
     main()
+

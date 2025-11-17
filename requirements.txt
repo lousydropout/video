@@ -1,0 +1,5 @@
+openai>=2.8.0
+replicate>=0.25.0
+python-dotenv>=1.2.1
+requests>=2.25.1
+
